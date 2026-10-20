@@ -28,3 +28,4 @@ CMakeUserPresets.json
 Thumbs.db
 desktop.ini
 *.map
+dist/

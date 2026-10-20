@@ -50,3 +50,5 @@ if errorlevel 1 exit /b 1
 build\out\dm_sha256_test.exe
 if errorlevel 1 exit /b 1
 echo BUILD OK: build\out\DisplayManager.dll
+python tools\package.py
+if errorlevel 1 exit /b 1
