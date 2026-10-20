@@ -1,0 +1,39 @@
+[19:54:33.398] EFZ DisplayManager v0.6.0 (exclusive-fullscreen): attached, deferring to bootstrap worker
+[19:54:33.401] admission: DDRAW.dll loaded at 71a90000 (D:\EFZ_FULLPACK\DDRAW.dll)
+[19:54:33.407] admission: file SHA-256: 0e072342d87d240e18969bc3663032e0e370eaba24d1fbb8e6c1f6216ad9f603
+[19:54:33.407] admission: profile accepted: renderer-split Revival 1.02j (2026-08-02) (PE timestamp 6a6f1795)
+[19:54:33.658] bootstrap: wrapper device 08a38fa0, native surface 008e37c0
+[19:54:33.863] window: style 14ca0000 -> 14cf0000 (maximize enabled + drag-resize (pauses game during drag), client preserved)
+[19:54:33.895] detour: installed 6-byte hook at 71ab79c0 (target 73712dc0)
+[19:54:33.896] window: Alt+Enter now owned by DisplayManager (wrapper handler neutralized)
+[19:54:33.900] surfaces: native 640x480, backbuffer 1280x960 (src 008e37c0 dst 008e3fe0)
+[19:54:33.900] flip #1: dstRect=NULL(full) filter=2 pp=1280x960 borderless=0 <changed>
+[19:54:33.900] adapt: -> (0,0,1280,960) 1280x960 filter=2 (was 2)
+[19:54:33.914] flip #2: dstRect=NULL(full) filter=2 pp=1280x960 borderless=0
+[19:54:33.914] adapt: -> (0,0,1280,960) 1280x960 filter=2 (was 2)
+[19:54:33.927] detour: installed 7-byte entry hook at 71ab7860 (trampoline 73717010)
+[19:54:33.927] bootstrap: hook active (observe + adapt: mode=0 scale=0 custom=640x480 filter=0 bg=000000)
+[19:54:33.930] flip #3: dstRect=NULL(full) filter=2 pp=1280x960 borderless=0
+[19:54:33.930] adapt: -> (0,0,1280,960) 1280x960 filter=2 (was 2)
+[19:54:33.947] flip #4: dstRect=NULL(full) filter=2 pp=1280x960 borderless=0
+[19:54:33.947] adapt: -> (0,0,1280,960) 1280x960 filter=2 (was 2)
+[19:54:33.963] flip #5: dstRect=NULL(full) filter=2 pp=1280x960 borderless=0
+[19:54:33.963] adapt: -> (0,0,1280,960) 1280x960 filter=2 (was 2)
+[19:54:33.978] flip #6: dstRect=NULL(full) filter=2 pp=1280x960 borderless=0
+[19:54:33.978] adapt: -> (0,0,1280,960) 1280x960 filter=2 (was 2)
+[19:54:43.274] flip #600: dstRect=NULL(full) filter=2 pp=1280x960 borderless=0
+[19:54:43.274] adapt: -> (0,0,1280,960) 1280x960 filter=2 (was 2)
+[19:54:51.258] borderless: entering 2560x1440
+[19:54:51.262] borderless-enter: surface recreation staging=1 native=1
+[19:54:51.262] surfaces: native 640x480, backbuffer 2560x1440 (src 11fe6780 dst 11fe59c0)
+[19:54:51.262] flip #1091: dstRect=NULL(full) filter=2 pp=2560x1440 borderless=0 <changed>
+[19:54:51.262] flip #1091: native/device pointer changed (post-reset recreation)
+[19:54:51.262] adapt: -> (320,0,2240,1440) 1920x1440 filter=2 (was 2)
+[19:54:52.520] borderless: exiting to windowed
+[19:54:52.522] borderless-exit: surface recreation staging=1 native=1
+[19:54:52.522] surfaces: native 640x480, backbuffer 1280x960 (src 11fe61e0 dst 11fe5ba0)
+[19:54:52.522] flip #1171: dstRect=NULL(full) filter=2 pp=1280x960 borderless=0 <changed>
+[19:54:52.522] flip #1171: native/device pointer changed (post-reset recreation)
+[19:54:52.522] adapt: -> (0,0,1280,960) 1280x960 filter=2 (was 2)
+[19:54:52.961] flip #1200: dstRect=NULL(full) filter=2 pp=1280x960 borderless=0
+[19:54:52.961] adapt: -> (0,0,1280,960) 1280x960 filter=2 (was 2)

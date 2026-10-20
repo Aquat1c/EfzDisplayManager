@@ -38,6 +38,12 @@ struct DdrawProfile {
     uint32_t filterRva;           // +0x6C: D3DTEXTUREFILTERTYPE for both blits
     uint32_t borderlessRva;       // +0x71: borderless mode flag byte
     uint32_t fontRva;             // +0x74: D3DX font (may be null)
+    // The wrapper WndProc's Alt+Enter keycode compare (cmp ebx/esi, 0xD).
+    // We rewrite the immediate to an unpressable key so OUR Flip-entry poll
+    // owns Alt+Enter (configurable exclusive/borderless), and restore the
+    // byte on detach.
+    uint32_t altEnterCmpRva;
+    unsigned char altEnterBytes[3];
 };
 
 // Both audited Revival 1.02j Ddraw builds. Two different 1.02j wrappers
@@ -69,6 +75,8 @@ inline const DdrawProfile& splitJProfile() {
         0xDF2ECu,
         0xDF2F1u,
         0xDF2F4u,
+        0x24990u,
+        {0x83, 0xFB, 0x0D},
     };
     return p;
 }
@@ -81,9 +89,7 @@ inline const DdrawProfile& splitJProfile() {
 // ff 90 88 00 00 00). Code RVAs: 1.02f/g/h match the 2020 original;
 // only 1.02i shifts. Their own Present-failure reset helper sits at
 // 0x165c0 (documented; we use our own font-safe sequence regardless).
-#define DM_PROFILE_2020GEN                                                         0x1FC1Fu, {0xFF, 0x90, 0x88, 0x00, 0x00, 0x00},                                    0x1F9E0u, {0x55, 0x8B, 0xEC, 0x83, 0xE4, 0xF8},                                0xB6BC8u, 0xB6BCCu, 0xB6C0Cu, 0xB6BD4u, 0xB6C14u, 0xB6C34u, 0xB6C39u,          0xB6C3Cu
-
-#define DM_PROFILE_2020GEN_NAME(name) name
+#define DM_PROFILE_2020GEN                                                         0x1FC1Fu, {0xFF, 0x90, 0x88, 0x00, 0x00, 0x00},                                0x1F9E0u, {0x55, 0x8B, 0xEC, 0x83, 0xE4, 0xF8},                                0xB6BC8u, 0xB6BCCu, 0xB6C0Cu, 0xB6BD4u, 0xB6C14u, 0xB6C34u, 0xB6C39u,          0xB6C3Cu, 0x1C61Cu, {0x83, 0xFE, 0x0D}
 
 inline const DdrawProfile& rev2020Profile() {
     // 2020-era original: ships with EFZ_clean, EFZ_RELAY, F:/EFZ,
@@ -163,7 +169,7 @@ inline const DdrawProfile& rev102iProfile() {
         0x1FA90u,
         {0x55, 0x8B, 0xEC, 0x83, 0xE4, 0xF8},
         0xB6BC8u, 0xB6BCCu, 0xB6C0Cu, 0xB6BD4u, 0xB6C14u, 0xB6C34u, 0xB6C39u,
-        0xB6C3Cu,
+        0xB6C3Cu, 0x1C6DCu, {0x83, 0xFE, 0x0D},
     };
     return p;
 }
@@ -191,6 +197,8 @@ inline const DdrawProfile& originalJProfile() {
         0xDF2ECu,
         0xDF2F1u,
         0xDF2F4u,
+        0x246F0u,
+        {0x83, 0xFB, 0x0D},
     };
     return p;
 }

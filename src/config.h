@@ -20,6 +20,9 @@ struct Config {
                                // value) | Point (override) (default Linear)
     unsigned long backgroundColor;  // [Display] BackgroundColor RRGGBB hex
                                     // (default 000000)
+    int borderlessFullscreen;      // [Display] FullscreenMode: 0 = the
+                                  // Alt+Enter/F11 target is EXCLUSIVE
+                                  // fullscreen (default), 1 = BORDERLESS
     int fullscreen;               // [Display] Fullscreen (default 0): start
                                   // in exclusive fullscreen at the desktop
                                   // mode (F11 toggles)

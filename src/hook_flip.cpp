@@ -109,6 +109,9 @@ bool g_fsEnabled = false;       // feature armed (config + no blocking mods)
 bool g_fsHotkey = true;         // F11 toggle armed
 long g_fsVSync = -1;            // -1 keep wrapper interval, 0 immediate, 1 one
 bool g_fsExclusive = false;     // currently in exclusive fullscreen
+bool g_fsBorderless = false;    // currently in OUR borderless fullscreen
+bool g_fsUseBorderless = false; // config: Alt+Enter/F11 target mode
+bool g_altEnterWasDown = false; // Alt+Enter edge detection
 bool g_fsPending = false;       // enter/exit request queued
 bool g_fsKeyWasDown = false;    // F11 edge detection
 unsigned char g_fsSavedPp[kPp_Size];
@@ -262,6 +265,64 @@ void enterExclusive(HWND hwnd) {
     }
 }
 
+void enterBorderless(HWND hwnd) {
+    HMONITOR mon = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+    MONITORINFO mi;
+    memset(&mi, 0, sizeof(mi));
+    mi.cbSize = sizeof(mi);
+    if (!mon || !GetMonitorInfoA(mon, &mi)) {
+        DM_LOG("borderless: monitor query failed; staying windowed");
+        return;
+    }
+    const long monW = mi.rcMonitor.right - mi.rcMonitor.left;
+    const long monH = mi.rcMonitor.bottom - mi.rcMonitor.top;
+
+    unsigned char* pp = g_obs.base + g_obs.profile->ppRva;
+    unsigned char fallback[kPp_Size];
+    ppSave(fallback, pp);
+    ppSave(g_fsSavedPp, pp);
+    // Windowed stays TRUE; only the backbuffer grows to the monitor so the
+    // final blit letterboxes instead of the OS stretching a 4:3 backbuffer.
+    *reinterpret_cast<long*>(pp) = monW;
+    *reinterpret_cast<long*>(pp + 4) = monH;
+    ppApplyVSync(pp, g_fsVSync);
+
+    if (!g_fsSavedWindowPlacement) {
+        g_fsSavedStyle = GetWindowLongPtrA(hwnd, GWL_STYLE);
+        g_fsSavedExStyle = GetWindowLongPtrA(hwnd, GWL_EXSTYLE);
+        GetWindowRect(hwnd, &g_fsSavedRect);
+        g_fsSavedWindowPlacement = true;
+    }
+    SetWindowLongPtrA(hwnd, GWL_STYLE, WS_POPUP | WS_VISIBLE);
+    SetWindowLongPtrA(hwnd, GWL_EXSTYLE, WS_EX_APPWINDOW);
+    SetWindowPos(hwnd, HWND_TOP, mi.rcMonitor.left, mi.rcMonitor.top, monW,
+                 monH, SWP_NOACTIVATE | SWP_FRAMECHANGED);
+
+    DM_LOG("borderless: entering %ldx%ld", monW, monH);
+    if (resetSequence(fallback, "borderless-enter")) {
+        g_fsBorderless = true;
+    } else {
+        restoreWindowedFrame(hwnd);
+        DM_LOG("borderless: enter failed; staying windowed");
+    }
+}
+
+void exitBorderless(HWND hwnd) {
+    unsigned char* pp = g_obs.base + g_obs.profile->ppRva;
+    unsigned char fallback[kPp_Size];
+    ppSave(fallback, pp);
+    ppRestoreWindowed(pp, g_fsSavedPp);
+    ppApplyVSync(pp, g_fsVSync);
+    restoreWindowedFrame(hwnd);
+    DM_LOG("borderless: exiting to windowed");
+    if (resetSequence(fallback, "borderless-exit")) {
+        g_fsBorderless = false;
+        g_resizeState = ResizeState();
+    } else {
+        DM_LOG("borderless: exit failed; staying borderless");
+    }
+}
+
 void exitExclusive(HWND hwnd) {
     unsigned char* pp = g_obs.base + g_obs.profile->ppRva;
     unsigned char fallback[kPp_Size];
@@ -307,10 +368,11 @@ void setResizeConfig(bool enabled) {
 }
 
 void setFullscreenConfig(bool enabled, bool hotkey, long vsync,
-                         bool requestEnter) {
+                         bool requestEnter, bool useBorderless) {
     g_fsEnabled = enabled;
     g_fsHotkey = hotkey;
     g_fsVSync = vsync;
+    g_fsUseBorderless = useBorderless;
     g_fsPending = enabled && requestEnter;
 }
 
@@ -338,14 +400,19 @@ extern "C" void dmFlipEntryWork() {
     HWND hwnd = reinterpret_cast<HWND>(
         *reinterpret_cast<void**>(g_obs.base + g_obs.profile->hwndRva));
 
-    // Hotkey first: a key pressed during a lost-device window must still
+    // Hotkeys first: a key pressed during a lost-device window must still
     // latch the request; it executes once the device is healthy again.
+    // F11 and Alt+Enter both toggle the configured fullscreen mode.
     if (g_fsEnabled && g_fsHotkey) {
-        const bool down = (GetAsyncKeyState(VK_F11) & 0x8000) != 0;
-        if (down && !g_fsKeyWasDown) {
+        const bool f11 = (GetAsyncKeyState(VK_F11) & 0x8000) != 0;
+        const bool alt = (GetAsyncKeyState(VK_MENU) & 0x8000) != 0;
+        const bool enterKey = (GetAsyncKeyState(VK_RETURN) & 0x8000) != 0;
+        const bool altEnter = alt && enterKey;
+        if ((f11 && !g_fsKeyWasDown) || (altEnter && !g_altEnterWasDown)) {
             g_fsPending = true;
         }
-        g_fsKeyWasDown = down;
+        g_fsKeyWasDown = f11;
+        g_altEnterWasDown = altEnter;
     }
 
     // Device-lost handling: in exclusive mode focus loss is routine. While
@@ -374,7 +441,13 @@ extern "C" void dmFlipEntryWork() {
 
     if (g_fsEnabled && g_fsPending && !needRecovery && hwnd) {
         g_fsPending = false;
-        if (!g_fsExclusive) {
+        if (g_fsUseBorderless) {
+            if (!g_fsBorderless) {
+                enterBorderless(hwnd);
+            } else {
+                exitBorderless(hwnd);
+            }
+        } else if (!g_fsExclusive) {
             enterExclusive(hwnd);
         } else {
             exitExclusive(hwnd);
@@ -392,7 +465,7 @@ extern "C" void dmFlipEntryWork() {
     }
 
     // Windowed backbuffer resize (never while exclusive).
-    if (!g_resizeEnabled || g_fsExclusive || !hwnd) return;
+    if (!g_resizeEnabled || g_fsExclusive || g_fsBorderless || !hwnd) return;
     RECT rc;
     if (!GetClientRect(hwnd, &rc)) return;
     ResizeInput in;

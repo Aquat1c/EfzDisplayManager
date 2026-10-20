@@ -9,12 +9,6 @@ ResizeAction evaluateResize(ResizeState* st, const ResizeInput& in,
         st->candidateCount = 0;
         return ResizeAction::None;
     }
-    // Borderless/fullscreen is owned by Revival's toggle and the wrapper's
-    // own reset path; stay quiet there.
-    if (in.borderless) {
-        st->candidateCount = 0;
-        return ResizeAction::None;
-    }
     // Reject minimized / degenerate windows.
     if (in.clientW < kResizeMinClientW || in.clientH < kResizeMinClientH) {
         st->candidateCount = 0;

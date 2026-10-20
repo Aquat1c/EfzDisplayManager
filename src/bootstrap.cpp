@@ -201,7 +201,36 @@ DWORD WINAPI bootstrapThread(void* param) {
                "mod loaded)");
     }
     setFullscreenConfig(!deviceResourceModLoaded, cfg.fullscreenHotkey != 0,
-                        cfg.vsync, cfg.fullscreen != 0);
+                        cfg.vsync, cfg.fullscreen != 0,
+                        cfg.borderlessFullscreen != 0);
+    if (!deviceResourceModLoaded && cfg.fullscreen) {
+        DM_LOG("fullscreen: %s mode requested at startup (F11/Alt+Enter "
+               "toggles)",
+               cfg.borderlessFullscreen ? "borderless" : "exclusive");
+    }
+
+    // Own Alt+Enter: rewrite the wrapper WndProc's keycode compare to an
+    // unpressable key so its stock borderless toggle cannot race ours. Byte
+    // verified against the profile; left alone on mismatch (both toggles
+    // would then fire - logged).
+    {
+        unsigned char* site = base + profile->altEnterCmpRva;
+        if (site[0] == profile->altEnterBytes[0] &&
+            site[1] == profile->altEnterBytes[1] &&
+            site[2] == profile->altEnterBytes[2]) {
+            DWORD oldProtect = 0;
+            if (VirtualProtect(site, 3, PAGE_EXECUTE_READWRITE, &oldProtect)) {
+                site[2] = 0xE6;  // VK_ICO_CLEAR: effectively unpressable
+                FlushInstructionCache(GetCurrentProcess(), site, 3);
+                VirtualProtect(site, 3, oldProtect, &oldProtect);
+                DM_LOG("window: Alt+Enter now owned by DisplayManager "
+                       "(wrapper handler neutralized)");
+            }
+        } else {
+            DM_LOG("window: Alt+Enter site bytes mismatch; wrapper handler "
+                   "left active (both toggles may fire)");
+        }
+    }
     if (!deviceResourceModLoaded && cfg.fullscreen) {
         DM_LOG("fullscreen: exclusive requested at startup (F11 toggles)");
     }

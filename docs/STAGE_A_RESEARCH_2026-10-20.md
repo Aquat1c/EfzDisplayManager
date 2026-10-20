@@ -433,7 +433,35 @@ The v0.2.0 `stage-a-observe` module ran inside the game on 2026-10-20
   runtime geometry (dstRect letterbox values). The observation hook logs all
   of these automatically when they occur.
 
-## 12. Stage A implementation record (v0.2.0 → v0.5.2, 2026-10-20)
+## 12. Stage A implementation record (v0.2.0 → v0.6.0, 2026-10-20)
+
+**v0.6.0 Alt+Enter ownership + borderless letterbox fix:**
+
+- Root cause of the Alt+Enter stretch: the wrapper's borderless toggle
+  resizes the WINDOW to the monitor but never its backbuffer, so the OS
+  stretches the 4:3 backbuffer (1280x960) over the 16:9 borderless window.
+  Fix: the resize evaluation no longer skips borderless - the backbuffer
+  follows the client there too, so borderless is letterboxed by the final
+  blit like every other mode.
+- Alt+Enter is now owned by DisplayManager with a configurable target:
+  `FullscreenMode=0` EXCLUSIVE (default) / `1` BORDERLESS. Implementation:
+  the wrapper WndProc's keycode compare (`cmp ebx/esi, 0xD`, per-profile
+  byte-verified: 0x24990 split-J, 0x246F0 original-J, 0x1C61C 2020-gen,
+  0x1C6DC 1.02i) has its immediate rewritten to VK_ICO_CLEAR (unpressable),
+  so the stock toggle cannot race ours; our Flip-entry poll (Alt held +
+  Return edge) drives the configured mode. F11 remains as a second hotkey
+  for the same toggle. Byte mismatch => patch skipped and BOTH toggles
+  active (logged).
+- Borderless mode reuses the exclusive machinery with Windowed=TRUE: window
+  popup over the monitor, backbuffer reset to the monitor size, exact
+  style/rect restore on exit.
+- Live-verified (evidence: runtime-altenter-exclusive.txt,
+  runtime-altenter-borderless.txt): Alt+Enter enter+exit EXCLUSIVE
+  (2560x1440@240, recreation 1/1, letterbox (320,0,2240,1440)) and
+  Alt+Enter enter+exit BORDERLESS (2560x1440 backbuffer, recreation 1/1,
+  letterbox rect present, clean return to 1280x960).
+
+The sections below describe earlier versions as implemented at the time.
 
 **v0.5.2 all-copies support:** DisplayManager now admits every Revival
 wrapper generation found across the user's game copies. A disk-wide

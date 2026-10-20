@@ -36,7 +36,7 @@ void setResizeConfig(bool enabled);
 // (-1 keep, 0 immediate, 1 vsync) applied at every reset we perform, and
 // optionally requests entering exclusive at startup.
 void setFullscreenConfig(bool enabled, bool hotkey, long vsync,
-                         bool requestEnter);
+                         bool requestEnter, bool useBorderless);
 
 // Trampoline storage for the Flip-entry detour (filled by
 // installEntryDetour before the entry site is patched).

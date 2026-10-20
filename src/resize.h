@@ -11,8 +11,9 @@ namespace dm {
 // Only a stable user-driven change of the CLIENT size (maximize, restore,
 // drag resize) moves the backbuffer: to the new client size (1:1), or back
 // to Revival's originally configured backbuffer when the window returns to
-// its original client size. Borderless (Revival's fullscreen toggle) never
-// triggers a resize; the wrapper's own machinery owns that path.
+// its original client size. The borderless toggle also resizes (the wrapper resizes
+// the window but never its backbuffer, which would stretch 4:3 content; we
+// follow the client so borderless is letterboxed too).
 struct ResizeState {
     bool initialized = false;
     long origClientW = 0, origClientH = 0;
