@@ -39,6 +39,22 @@ if errorlevel 1 exit /b 1
 cl /nologo /W3 /EHsc /MT /O2 /LD test\reset_probe.cpp /Fe:"build\out\ResetProbe.dll" /Fo:"build\obj\probedir\\" /Fd:"build\obj\probedir\\"
 if errorlevel 1 exit /b 1
 
+rem Compile adapter tests against real Win32 headers and controlled DLL fixtures.
+for %%K in (training netplay legacy) do (
+    if not exist "build\obj\resetfixture-%%K" mkdir "build\obj\resetfixture-%%K"
+    set "DM_FIXTURE_DEFINE="
+    if "%%K"=="training" set "DM_FIXTURE_NAME=efz_training_mode"
+    if "%%K"=="netplay" set "DM_FIXTURE_NAME=efz_netplay_mod"
+    if "%%K"=="legacy" (
+        set "DM_FIXTURE_NAME=ResetProbe"
+        set "DM_FIXTURE_DEFINE=/DDM_RESET_FIXTURE_LEGACY=1"
+    )
+    cl /nologo /W4 /EHsc /MT /O2 /std:c++17 /LD /Isrc /Itest !DM_FIXTURE_DEFINE! test\reset_participant_fixture.cpp /Fe:"build\out\renderer-reset-tests\!DM_FIXTURE_NAME!.dll" /Fo:"build\obj\resetfixture-%%K\\" /Fd:"build\obj\resetfixture-%%K\\"
+    if errorlevel 1 exit /b 1
+)
+cl /nologo /W4 /EHsc /MT /O2 /std:c++17 /DWIN32_LEAN_AND_MEAN /DNOMINMAX /D_WIN32_WINNT=0x0501 /DWINVER=0x0501 /Isrc /Itest test\renderer_reset_test.cpp src\renderer_reset.cpp src\reset_transaction.cpp src\compat.cpp kernel32.lib user32.lib /Fe:"build\out\renderer-reset-tests\DisplayManagerRendererResetTests.exe" /Fo:"build\obj\renderer-testdir\\" /Fd:"build\obj\renderer-testdir\\"
+if errorlevel 1 exit /b 1
+
 rem Optional helper: each proprietary fixture still requires explicit CLI input.
 if /I "%~1"=="--fixtures" (
     cl /nologo /W4 /EHsc /MT /O2 /std:c++17 /Isrc test\profile_fixture_test.cpp src\sha256.cpp src\sha256_file.cpp /Fe:"build\out\dm_profile_fixture_test.exe" /Fo:"build\obj\fixturedir\\" /Fd:"build\obj\fixturedir\\"
@@ -48,6 +64,8 @@ if /I "%~1"=="--fixtures" (
 build\out\dm_sha256_test.exe
 if errorlevel 1 exit /b 1
 build\out\DisplayManagerResetTests.exe
+if errorlevel 1 exit /b 1
+build\out\renderer-reset-tests\DisplayManagerRendererResetTests.exe
 if errorlevel 1 exit /b 1
 python tools\verify_pe.py build\out\DisplayManager.dll
 if errorlevel 1 exit /b 1

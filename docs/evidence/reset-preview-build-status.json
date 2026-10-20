@@ -1,0 +1,122 @@
+{
+  "compiler": "LLVM-MinGW 20261006 / Clang 23.1.3, i686-w64-windows-gnu",
+  "cmake": "3.31.10",
+  "host_compiler": "GCC 13.3.0",
+  "host_ctest": {
+    "passed": 2,
+    "total": 2,
+    "tests": [
+      "portable_core",
+      "reset_transaction"
+    ],
+    "exit_code": 0,
+    "log": "final-host-ctest.log"
+  },
+  "win32_cross_build": "passed; final current sources, all CMake targets, including production DLL, pure tests, file validator, reset probe, adapter test and controlled fixture DLLs",
+  "win32_registered_ctest": [
+    "sha256_file_abc",
+    "portable_core",
+    "reset_transaction",
+    "renderer_reset"
+  ],
+  "native_windows_execution": "not executed here; cross-compilation/linking and host test results only",
+  "pe_gate": "passed PE32/I386 DLL, GUI subsystem, exact OS/subsystem 5.1, no delay imports, only named kernel32/user32 imports; individual XP export availability is not proven by this gate",
+  "overlay_translation_units": "all four actual x86 TUs compiled; no full companion DLL link claimed",
+  "overlay_exports": "undecorated EFZ_QueryOverlayResetApiV1 in both COFF provider objects",
+  "production_inputs": {
+    "src/bootstrap.cpp": "76949fab87725a22c8f7590d61d29924a890d39e89c1a3d3c2d5f150e5915ded",
+    "src/compat.cpp": "5b1e6f8e5102bd03b1079869c8340ec2f8c50c83aa29475e71f1ed494c3085dd",
+    "src/compat.h": "cf01281bef7c8dff7d17f1ebe3840c5062f2d0554fb69b82fb258caee7aa2f31",
+    "src/config.cpp": "322e126c9b2410d16e62f572b6161ad4958d7c27480c7f35f8f797e8064663d0",
+    "src/config.h": "ad9f11aed7ff4a811a22a8b2fdb3e3062de49e92f4e2df37026418eb10ad4ccb",
+    "src/detour.cpp": "eea1cadd439542fe4e6b21a71df959ae62c4d3ab325ab61715d4ae0dec818848",
+    "src/detour.h": "6bf160313d58d4539b98cd129115a3e4feb3d6e6d86c5b7292219b83423c6804",
+    "src/dllmain.cpp": "5018f323e1689f756c2d5b05e8085cebff3f4e48f3b98177eda1310720c5fab5",
+    "src/format.cpp": "335357bd2174ddfed547f81482415c771443a4321ba7522ca94f33df3195ce5a",
+    "src/format.h": "21f21a1a7695da68d5a1777b0a29feb74a4f48f639050b1f259b69de0a7003fb",
+    "src/fullscreen.cpp": "146888956461383abfd4697a847887761b6727abd4a6d13fe303ab4f8e58517b",
+    "src/fullscreen.h": "2b9e7872cb80d7486db176dd9b21d4321a880bc9d94f3f0a6a4f8e2d9d4a1b25",
+    "src/geometry.cpp": "3f3513b8263fabb7e128e2f621de730bb35848f91d063260b51cf6472229c913",
+    "src/geometry.h": "12da26c50bdefde0500acadd3dc2bca6004af51e8e5c7665e867936bd6e8f37d",
+    "src/hook_flip.cpp": "69a20368485f22eaa83a102e838962892ebb78c455216f6a4e824e886f3f4d88",
+    "src/hook_flip.h": "f71dfc3e76e5e5e72ce2e9ba83692774523ee13dd2053cf39685a2187faaacce",
+    "src/logging.cpp": "23c722047c898d8ed7c98fa167f989a218c003aeea2864c0d7868dee85ae874b",
+    "src/logging.h": "4470e210de935a2977313fe65ecb5853e4dce0f6b18dfe3b6bbed62c773af629",
+    "src/nocrt.cpp": "7379c4ce4e8bcb401c36f8e37fa8a7446bc1b5112584ae9f20c390fb59f70d36",
+    "src/overlay_reset_api.h": "f593f878426657432308f6b1ea7ee4e03e31907cb11240751f679708004c71ca",
+    "src/profiles.h": "755700c442c9728d2e59a2cb606f6fd0b4a27daa61e2f614c0a6062523b51b8e",
+    "src/renderer_reset.cpp": "bb8d0708a91d13a08afec7eb05a832ecdcf45694506892ccb69cc24b384eb3f9",
+    "src/renderer_reset.h": "aeb7cf84864d4c1e9807488853f10fb39fea46812e9c67da292d3316d36a7cb9",
+    "src/reset_helper_signatures.h": "9a196e7543004e3e5a625ecfc9c50549d0eb00f5ee5ca00fbefa4ea5221eab75",
+    "src/reset_transaction.cpp": "3b6e9c0c9fd29379d11ee287a0c07404da5161d84afce56493b5276033dc751f",
+    "src/reset_transaction.h": "bfef793e17e418d21e76e70799028a7bbfc24c36f5563399c894d87e20a47ee0",
+    "src/resize.cpp": "56de575b98a547ccff21d1fdddf3efdb31683a7cbe921bd85bdbbd470b6bf9f5",
+    "src/resize.h": "f2397d6727b37e0edcd5ba34b3a294993f052ddeff72d042101216f843ebec6f",
+    "src/sha256.cpp": "615b83c759a5af3f255094c6bdd2a830b21ebe404828b9768a1d3be1e20cebc7",
+    "src/sha256.h": "1dea40e7105c6591d05e8e06534464dbb9dd060af673cd00b4b2bd6af00e293b",
+    "src/sha256_file.cpp": "d1979c629fc3f4a978076c3ac2c7746e88d81e1beffadc47736380e32af85512",
+    "src/shader_sharp.h": "1268bba72a653737ed80cba58f7fca4388dc6c43c60416a81fc3c708f76c9ff6",
+    "src/shader_xbr.h": "d39a5fe92c9571accfcd5572e490340068d9b467436ea7d820f6132676ac8705",
+    "src/shaders.cpp": "bb4830bfd06c4f87dcba80ef0f331129e261f9df14a35504d409eaae3b1bdbbb",
+    "src/shaders.h": "6be5e89a0d8aa879d6206752ed99e673a5f0ad26c3e885d317bde9aada23696e",
+    "src/version.h": "5c1c0f31ba7f4b5ddc4b6af326485881f481fc36d9029d67d62878005fd342ad"
+  },
+  "artifacts": {
+    "cmake-cross-build/DisplayManager.dll": {
+      "sha256": "810552c842bd11db944c1fe2acb0ccd8320ea2fda0556bdd02aab1da22894bc7",
+      "bytes": 57856
+    },
+    "cmake-cross-build/DisplayManagerResetTests.exe": {
+      "sha256": "6182daad060891a372db4c91d2c30643dba90f29cc06638bd2c4ca8c652f46ac",
+      "bytes": 185856
+    },
+    "cmake-cross-build/ResetProbe.dll": {
+      "sha256": "e48afb16a6c8db6b0f0ede709b2455da36e094e6e4ba41d3befe989f88bef0e2",
+      "bytes": 209920
+    },
+    "cmake-cross-build/dm_profile_fixture_test.exe": {
+      "sha256": "f6228b3b865fff44306b9896a05af61fab72bb539222d3153c8a7c5a217aad1d",
+      "bytes": 183808
+    },
+    "cmake-cross-build/dm_sha256_test.exe": {
+      "sha256": "c333e5f5ad0d51cf74fda952b1cc10cb3373f153146518570a25781d97952509",
+      "bytes": 204288
+    },
+    "cmake-cross-build/renderer-reset-tests/Release/DisplayManagerRendererResetTests.exe": {
+      "sha256": "752dcd2831fad3edcf29e73ee4e66ef6704080f9a8f03181d4302538847f36f6",
+      "bytes": 250368
+    },
+    "cmake-cross-build/renderer-reset-tests/Release/ResetProbe.dll": {
+      "sha256": "44f16bf813e3eca402f56a7622f21619588954769299eb0ceb4e8039dd717939",
+      "bytes": 35328
+    },
+    "cmake-cross-build/renderer-reset-tests/Release/efz_netplay_mod.dll": {
+      "sha256": "77183a7b66193ee211dd6a89514970d45f6ba6555c4a74466deccd3ae65d8e37",
+      "bytes": 36352
+    },
+    "cmake-cross-build/renderer-reset-tests/Release/efz_training_mode.dll": {
+      "sha256": "572ed3c0994ffe4930f551a79e5206149f5c5a54cbfe53b6e1ced0118d69892b",
+      "bytes": 36352
+    }
+  },
+  "verified_at_utc": "2026-10-20T20:50:19.483947+00:00",
+  "final_build_manifest": {
+    "path": "reset-preview-build-inputs.sha256",
+    "sha256": "28eff10defecec53bac28f5ae7f6607b1701948bd8ba41c22e4f708ecc496c28",
+    "files": 51
+  },
+  "win32_adapter_cases": 15,
+  "git_diff_check": {
+    "exit_code": 0,
+    "output": ""
+  },
+  "pe_gate_log": "reset-preview-pe-gate.txt",
+  "commands": {
+    "cross_build": "/workspace/scratch/a39c8c0166f8/research/displaymanager_patch/toolchain/python_tools/cmake/data/bin/cmake --build /workspace/scratch/a39c8c0166f8/research/displaymanager_patch/toolchain/cmake-cross-build --parallel 4",
+    "host_build": "/workspace/scratch/a39c8c0166f8/research/displaymanager_patch/toolchain/python_tools/cmake/data/bin/cmake --build /workspace/scratch/a39c8c0166f8/research/displaymanager_patch/toolchain/host-build --parallel 4",
+    "host_ctest": "/workspace/scratch/a39c8c0166f8/research/displaymanager_patch/toolchain/python_tools/cmake/data/bin/ctest --test-dir /workspace/scratch/a39c8c0166f8/research/displaymanager_patch/toolchain/host-build --output-on-failure",
+    "pe_gate": "python3 tools/verify_pe.py /workspace/scratch/a39c8c0166f8/research/displaymanager_patch/toolchain/cmake-cross-build/DisplayManager.dll",
+    "whitespace": "git diff --check"
+  },
+  "host_ctest_log": "reset-preview-host-ctest.txt"
+}

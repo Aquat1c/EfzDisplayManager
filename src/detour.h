@@ -16,6 +16,8 @@ enum { kMaxDetourSites = 3 };
 // threads are suspended while the patch is written so no thread can execute
 // into a half-written instruction. Returns false without patching when the
 // site bytes do not match.
+// If guardedLength exceeds byteCount, expectedBytes must span that complete
+// range. Recheck the full range while suspended, but overwrite only byteCount.
 bool installDetour(unsigned char* site, const unsigned char* expectedBytes,
                    size_t byteCount, const void* target, bool useCall,
                    size_t guardedLength = 0);

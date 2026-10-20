@@ -80,7 +80,7 @@ bool installDetour(unsigned char* site, const unsigned char* expected, size_t le
         if (!suspended) Sleep(1);
     }
     if (!suspended) { DM_LOG("detour: could not reach safe patch boundary"); return false; }
-    if (std::memcmp(site, expected, length) != 0) { resumeThreads(&threads); return false; }
+    if (std::memcmp(site, expected, guardedLength) != 0) { resumeThreads(&threads); return false; }
     DWORD protection = 0;
     if (!VirtualProtect(site, length, PAGE_EXECUTE_READWRITE, &protection)) { resumeThreads(&threads); return false; }
     auto& state = g_patches[slot];

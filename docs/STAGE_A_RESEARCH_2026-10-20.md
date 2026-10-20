@@ -1,3 +1,9 @@
+> **Reset repair follow-up:** see [RESET_REPAIR_2026-10-20.md](RESET_REPAIR_2026-10-20.md)
+> for the 0.9.0 preview and current verification limits. Historical entries below
+> retain what was believed at the time. The reported `0x40BCF9` consumer follows
+> DirectDraw **Lock** (vtable `+0x64`), not GetPalette; renderer Flip gating alone
+> does not prove that distinct game-surface backing path is repaired.
+
 # Stage A research: verified anchors, integration contracts, and port map
 
 **Date:** 20 October 2026 (follows the initial repo scaffold, same day)

@@ -116,4 +116,37 @@ if(BUILD_TESTING)
     add_test(NAME portable_core COMMAND dm_sha256_test)
     add_test(NAME reset_transaction COMMAND DisplayManagerResetTests)
 
+    if(WIN32)
+        # Exercise the production adapter and participant discovery with fake
+        # COM objects and real loader APIs. No graphics device is required.
+        add_executable(DisplayManagerRendererResetTests
+            test/renderer_reset_test.cpp
+            src/renderer_reset.cpp src/reset_transaction.cpp src/compat.cpp
+        )
+        target_include_directories(DisplayManagerRendererResetTests PRIVATE src test)
+        target_compile_definitions(DisplayManagerRendererResetTests PRIVATE
+            WIN32_LEAN_AND_MEAN NOMINMAX _WIN32_WINNT=0x0501 WINVER=0x0501
+        )
+        target_link_libraries(DisplayManagerRendererResetTests PRIVATE kernel32 user32)
+        set(DM_RENDERER_TEST_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/renderer-reset-tests/$<CONFIG>")
+        set_target_properties(DisplayManagerRendererResetTests PROPERTIES
+            RUNTIME_OUTPUT_DIRECTORY "${DM_RENDERER_TEST_OUTPUT_DIR}"
+        )
+        foreach(kind IN ITEMS training netplay legacy)
+            add_library(dm_reset_fixture_${kind} SHARED test/reset_participant_fixture.cpp)
+            target_include_directories(dm_reset_fixture_${kind} PRIVATE src test)
+            set_target_properties(dm_reset_fixture_${kind} PROPERTIES
+                PREFIX ""
+                RUNTIME_OUTPUT_DIRECTORY "${DM_RENDERER_TEST_OUTPUT_DIR}"
+                LIBRARY_OUTPUT_DIRECTORY "${DM_RENDERER_TEST_OUTPUT_DIR}"
+            )
+            add_dependencies(DisplayManagerRendererResetTests dm_reset_fixture_${kind})
+        endforeach()
+        set_target_properties(dm_reset_fixture_training PROPERTIES OUTPUT_NAME "efz_training_mode")
+        set_target_properties(dm_reset_fixture_netplay PROPERTIES OUTPUT_NAME "efz_netplay_mod")
+        set_target_properties(dm_reset_fixture_legacy PROPERTIES OUTPUT_NAME "ResetProbe")
+        target_compile_definitions(dm_reset_fixture_legacy PRIVATE DM_RESET_FIXTURE_LEGACY=1)
+        add_test(NAME renderer_reset COMMAND DisplayManagerRendererResetTests)
+    endif()
+
 endif()

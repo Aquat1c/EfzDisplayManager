@@ -38,6 +38,8 @@ ResetOutcome g_outcome = ResetOutcome::RequestedReady;
 uint32_t g_epoch = 0;
 unsigned long g_generation = 0;
 DWORD g_lastAttempt = 0;
+unsigned long g_attempts = 0;
+HRESULT g_lastResetResult = S_OK;
 const char* g_reason = "recovery";
 
 IDirect3DSurface9*& staging() {
@@ -185,12 +187,27 @@ int32_t actualReset(void*, unsigned char* mutableParameters) {
         g_fontLost = true;
     }
     auto* pp = reinterpret_cast<D3DPRESENT_PARAMETERS*>(mutableParameters);
-    DM_LOG("reset: %s epoch=%lu thread=%lu windowed=%u size=%ux%u swap=%u interval=%08lx",
-           g_reason, static_cast<unsigned long>(g_epoch), GetCurrentThreadId(),
-           static_cast<unsigned>(pp->Windowed), pp->BackBufferWidth, pp->BackBufferHeight,
-           static_cast<unsigned>(pp->SwapEffect), pp->PresentationInterval);
+    ++g_attempts;
+    const bool logAttempt = g_attempts <= 3 || g_attempts % 60 == 0;
+    if (logAttempt) {
+        DM_LOG("reset: %s epoch=%lu attempt=%lu thread=%lu windowed=%u size=%ux%u swap=%u interval=%08lx",
+               g_reason, static_cast<unsigned long>(g_epoch), g_attempts, GetCurrentThreadId(),
+               static_cast<unsigned>(pp->Windowed), pp->BackBufferWidth, pp->BackBufferHeight,
+               static_cast<unsigned>(pp->SwapEffect), pp->PresentationInterval);
+        DM_LOG("reset: format=%u count=%u ms=%u quality=%lu depth=%u depthfmt=%u flags=%08lx refresh=%u",
+               static_cast<unsigned>(pp->BackBufferFormat), pp->BackBufferCount,
+               static_cast<unsigned>(pp->MultiSampleType), pp->MultiSampleQuality,
+               static_cast<unsigned>(pp->EnableAutoDepthStencil),
+               static_cast<unsigned>(pp->AutoDepthStencilFormat), pp->Flags, pp->FullScreen_RefreshRateInHz);
+        DM_LOG("reset: device=%p font=%p fontLost=%u hwnd=%p windowThread=%lu foreground=%p staging=%ux%u/%u native=%ux%u/%u",
+               g_device, g_font, g_fontLost ? 1u : 0u, pp->hDeviceWindow,
+               GetWindowThreadProcessId(pp->hDeviceWindow, nullptr), GetForegroundWindow(),
+               g_stagingDesc.Width, g_stagingDesc.Height, static_cast<unsigned>(g_stagingDesc.Format),
+               g_nativeDesc.Width, g_nativeDesc.Height, static_cast<unsigned>(g_nativeDesc.Format));
+    }
     const HRESULT hr = g_guard->reset(g_device, pp);
-    DM_LOG("reset: result=%08lx", static_cast<long>(hr));
+    if (logAttempt || hr != g_lastResetResult) DM_LOG("reset: result=%08lx", static_cast<long>(hr));
+    g_lastResetResult = hr;
     return static_cast<int32_t>(hr);
 }
 
@@ -274,6 +291,7 @@ ResetOutcome rendererResetRequest(const unsigned char* desired, const unsigned c
     if (!g_enabled || !g_device || !g_guard || GetCurrentThreadId() != g_ownerThread ||
         rendererResetBusy()) return ResetOutcome::Refused;
     g_reason = reason;
+    g_attempts = 0;
     g_lastAttempt = GetTickCount();
     g_outcome = resetStart(&g_tx, operations(), desired, rollback);
     return g_outcome;

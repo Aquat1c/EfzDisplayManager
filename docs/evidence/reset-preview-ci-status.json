@@ -1,0 +1,259 @@
+{
+  "schema_version": 1,
+  "observed_at_utc": "2026-10-20 20:45:42 UTC",
+  "summary": "None of these hosted runs executed tests or a native build. DisplayManager's push and PR runs ended in startup_failure; the inspected PR run returned no jobs and the commit returned no check runs. Companion runs parsed their named workflow and created failed jobs, but the inspected PR jobs have no steps and no assigned runner. Their accessible check output has no error text; each has one annotation whose endpoint is unsupported by the connector. An older training run has the same no-runner/no-steps symptom. The exact server-side cause remains unconfirmed.",
+  "repositories": [
+    {
+      "repository": "Aquat1c/DisplayManager",
+      "pr_url": "https://github.com/Aquat1c/DisplayManager/pull/1",
+      "head_sha": "a47d4ce24639ec588410b39bcb313d3c03d18bc0",
+      "runs": [
+        {
+          "id": 39494038885,
+          "url": "https://github.com/Aquat1c/DisplayManager/actions/runs/39494038885",
+          "head_sha": "a47d4ce24639ec588410b39bcb313d3c03d18bc0",
+          "event": "pull_request",
+          "status": "completed",
+          "conclusion": "startup_failure",
+          "name": "",
+          "path": "BuildFailed",
+          "created_at": "2026-10-20T20:40:51Z",
+          "updated_at": "2026-10-20T20:40:51Z"
+        },
+        {
+          "id": 39494001470,
+          "url": "https://github.com/Aquat1c/DisplayManager/actions/runs/39494001470",
+          "head_sha": "a47d4ce24639ec588410b39bcb313d3c03d18bc0",
+          "event": "push",
+          "status": "completed",
+          "conclusion": "startup_failure",
+          "name": "",
+          "path": "BuildFailed",
+          "created_at": "2026-10-20T20:40:35Z",
+          "updated_at": "2026-10-20T20:40:35Z"
+        }
+      ],
+      "inspected_jobs": {
+        "run_id": 39494038885,
+        "source_url": "https://api.github.com/repos/Aquat1c/DisplayManager/actions/runs/39494038885/jobs",
+        "jobs": []
+      },
+      "commit_checks": {
+        "source_url": "https://api.github.com/repos/Aquat1c/DisplayManager/commits/a47d4ce24639ec588410b39bcb313d3c03d18bc0/check-runs",
+        "total_count": 0
+      },
+      "reason": "No error message is present in the returned run or GitHub Actions check-suite records. Both GitHub Actions suites have latest_check_runs_count=0 and conclusion=startup_failure."
+    },
+    {
+      "repository": "Aquat1c/efz-training-mode",
+      "pr_url": "https://github.com/Aquat1c/efz-training-mode/pull/36",
+      "head_sha": "c4d5678657a721c48956e1f8575737f6f0581011",
+      "runs": [
+        {
+          "id": 39494208248,
+          "url": "https://github.com/Aquat1c/efz-training-mode/actions/runs/39494208248",
+          "head_sha": "c4d5678657a721c48956e1f8575737f6f0581011",
+          "event": "pull_request",
+          "status": "completed",
+          "conclusion": "failure",
+          "name": "Overlay reset contract",
+          "path": ".github/workflows/overlay-reset-contract.yml",
+          "created_at": "2026-10-20T20:42:02Z",
+          "updated_at": "2026-10-20T20:42:05Z"
+        },
+        {
+          "id": 39494174329,
+          "url": "https://github.com/Aquat1c/efz-training-mode/actions/runs/39494174329",
+          "head_sha": "c4d5678657a721c48956e1f8575737f6f0581011",
+          "event": "push",
+          "status": "completed",
+          "conclusion": "failure",
+          "name": "Overlay reset contract",
+          "path": ".github/workflows/overlay-reset-contract.yml",
+          "created_at": "2026-10-20T20:41:48Z",
+          "updated_at": "2026-10-20T20:41:51Z"
+        }
+      ],
+      "inspected_jobs": {
+        "run_id": 39494208248,
+        "source_url": "https://api.github.com/repos/Aquat1c/efz-training-mode/actions/runs/39494208248/jobs",
+        "jobs": [
+          {
+            "id": 118874884556,
+            "run_id": 39494208248,
+            "url": "https://github.com/Aquat1c/efz-training-mode/actions/runs/39494208248/job/118874884556",
+            "name": "portable-contract",
+            "status": "completed",
+            "conclusion": "failure",
+            "steps": [],
+            "runner_id": 0,
+            "runner_name": "",
+            "labels": [
+              "ubuntu-24.04"
+            ]
+          }
+        ]
+      },
+      "checks": [
+        {
+          "id": 118874884556,
+          "url": "https://github.com/Aquat1c/efz-training-mode/actions/runs/39494208248/job/118874884556",
+          "status": "completed",
+          "conclusion": "failure",
+          "output": {
+            "title": null,
+            "summary": null,
+            "text": null,
+            "annotations_count": 1,
+            "annotations_url": "https://api.github.com/repos/Aquat1c/efz-training-mode/check-runs/118874884556/annotations"
+          }
+        },
+        {
+          "id": 118874769153,
+          "url": "https://github.com/Aquat1c/efz-training-mode/actions/runs/39494174329/job/118874769153",
+          "status": "completed",
+          "conclusion": "failure",
+          "output": {
+            "title": null,
+            "summary": null,
+            "text": null,
+            "annotations_count": 1,
+            "annotations_url": "https://api.github.com/repos/Aquat1c/efz-training-mode/check-runs/118874769153/annotations"
+          }
+        }
+      ],
+      "reason": "Each check has null title, summary and text. Each has one annotation; annotation retrieval is not supported by the connector. The inspected job has runner_id=0, runner_name empty and steps=[]."
+    },
+    {
+      "repository": "Aquat1c/InGameNetplay",
+      "pr_url": "https://github.com/Aquat1c/InGameNetplay/pull/7",
+      "head_sha": "16f1124a112182907f99868d8ee21b5f922e7658",
+      "runs": [
+        {
+          "id": 39494275807,
+          "url": "https://github.com/Aquat1c/InGameNetplay/actions/runs/39494275807",
+          "head_sha": "16f1124a112182907f99868d8ee21b5f922e7658",
+          "event": "pull_request",
+          "status": "completed",
+          "conclusion": "failure",
+          "name": "Overlay reset contract",
+          "path": ".github/workflows/overlay-reset-contract.yml",
+          "created_at": "2026-10-20T20:42:30Z",
+          "updated_at": "2026-10-20T20:42:33Z"
+        },
+        {
+          "id": 39494255073,
+          "url": "https://github.com/Aquat1c/InGameNetplay/actions/runs/39494255073",
+          "head_sha": "16f1124a112182907f99868d8ee21b5f922e7658",
+          "event": "push",
+          "status": "completed",
+          "conclusion": "failure",
+          "name": "Overlay reset contract",
+          "path": ".github/workflows/overlay-reset-contract.yml",
+          "created_at": "2026-10-20T20:42:22Z",
+          "updated_at": "2026-10-20T20:42:25Z"
+        }
+      ],
+      "inspected_jobs": {
+        "run_id": 39494275807,
+        "source_url": "https://api.github.com/repos/Aquat1c/InGameNetplay/actions/runs/39494275807/jobs",
+        "jobs": [
+          {
+            "id": 118875113714,
+            "run_id": 39494275807,
+            "url": "https://github.com/Aquat1c/InGameNetplay/actions/runs/39494275807/job/118875113714",
+            "name": "portable-contract",
+            "status": "completed",
+            "conclusion": "failure",
+            "steps": [],
+            "runner_id": 0,
+            "runner_name": "",
+            "labels": [
+              "ubuntu-24.04"
+            ]
+          }
+        ]
+      },
+      "checks": [
+        {
+          "id": 118875113714,
+          "url": "https://github.com/Aquat1c/InGameNetplay/actions/runs/39494275807/job/118875113714",
+          "status": "completed",
+          "conclusion": "failure",
+          "output": {
+            "title": null,
+            "summary": null,
+            "text": null,
+            "annotations_count": 1,
+            "annotations_url": "https://api.github.com/repos/Aquat1c/InGameNetplay/check-runs/118875113714/annotations"
+          }
+        },
+        {
+          "id": 118875044473,
+          "url": "https://github.com/Aquat1c/InGameNetplay/actions/runs/39494255073/job/118875044473",
+          "status": "completed",
+          "conclusion": "failure",
+          "output": {
+            "title": null,
+            "summary": null,
+            "text": null,
+            "annotations_count": 1,
+            "annotations_url": "https://api.github.com/repos/Aquat1c/InGameNetplay/check-runs/118875044473/annotations"
+          }
+        }
+      ],
+      "reason": "Each check has null title, summary and text. Each has one annotation; annotation retrieval is not supported by the connector. The inspected job has runner_id=0, runner_name empty and steps=[]."
+    }
+  ],
+  "prior_evidence": {
+    "repository": "Aquat1c/efz-training-mode",
+    "run_id": 34258725689,
+    "url": "https://github.com/Aquat1c/efz-training-mode/actions/runs/34258725689",
+    "head_sha": "974199f372e7b457933a388391eea1e7174c19ab",
+    "created_at": "2026-09-08T17:42:36Z",
+    "source_url": "https://api.github.com/repos/Aquat1c/efz-training-mode/actions/runs/34258725689/jobs",
+    "jobs": [
+      {
+        "id": 102171019792,
+        "run_id": 34258725689,
+        "url": "https://github.com/Aquat1c/efz-training-mode/actions/runs/34258725689/job/102171019792",
+        "name": "bundle",
+        "status": "completed",
+        "conclusion": "failure",
+        "steps": [],
+        "runner_id": 0,
+        "runner_name": "",
+        "labels": [
+          "ubuntu-24.04"
+        ]
+      }
+    ],
+    "meaning": "The no-runner/no-steps symptom predates these changes. This does not prove that the exact cause is identical."
+  },
+  "retrieval_limits": [
+    {
+      "resource": "https://api.github.com/repos/Aquat1c/efz-training-mode/check-runs/118874884556/annotations",
+      "result": "Connector INVALID_ARGUMENT: URL is not an allowed endpoint (HTTPError 400). This is a connector endpoint limitation, not an authentication denial."
+    },
+    {
+      "resource": "https://api.github.com/repos/Aquat1c/efz-training-mode/actions/jobs/118874884556/logs",
+      "result": "Dedicated job-log tool returned GitHub BlobNotFound 404; no execution log was available."
+    },
+    {
+      "resource": "https://api.github.com/repos/Aquat1c/DisplayManager/actions/workflows/391001340",
+      "result": "Connector INVALID_ARGUMENT: URL is not an allowed endpoint (HTTPError 400)."
+    }
+  ],
+  "additional_checks": {
+    "pushed_dm_workflow_url": "https://github.com/Aquat1c/DisplayManager/blob/a47d4ce24639ec588410b39bcb313d3c03d18bc0/.github/workflows/build.yml",
+    "pushed_dm_workflow_matches_local": true,
+    "local_yaml_structure": "All three YAML files parse and contain expected event, job, step and read-only permissions structure. This is not GitHub server-side policy/schema validation.",
+    "referenced_action_files": [
+      "https://github.com/actions/checkout/blob/v6/action.yml",
+      "https://github.com/actions/checkout/blob/v7/action.yml",
+      "https://github.com/actions/upload-artifact/blob/v6/action.yml"
+    ],
+    "referenced_action_files_accessible": true
+  },
+  "actions_taken": "Read-only connector and local-source inspection only. No browser, login, rerun, account-settings or permission changes. No billing/policy cause inferred."
+}

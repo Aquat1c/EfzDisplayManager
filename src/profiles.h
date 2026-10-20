@@ -40,8 +40,8 @@ struct DdrawProfile {
     uint32_t resetHelperRva;
     // The wrapper WndProc's Alt+Enter keycode compare (cmp ebx/esi, 0xD).
     // We rewrite the immediate to an unpressable key so OUR Flip-entry poll
-    // owns Alt+Enter (configurable exclusive/borderless), and restore the
-    // byte only for process lifetime (manager is pinned).
+    // owns Alt+Enter (configurable exclusive/borderless). The patch lives
+    // until process exit; the manager module is pinned.
     uint32_t altEnterCmpRva;
     unsigned char altEnterBytes[3];
 };
