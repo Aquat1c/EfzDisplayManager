@@ -112,6 +112,10 @@ bool g_fsExclusive = false;     // currently in exclusive fullscreen
 bool g_fsPending = false;       // enter/exit request queued
 bool g_fsKeyWasDown = false;    // F11 edge detection
 unsigned char g_fsSavedPp[kPp_Size];
+LONG_PTR g_fsSavedStyle = 0;
+LONG_PTR g_fsSavedExStyle = 0;
+RECT g_fsSavedRect = {};
+bool g_fsSavedWindowPlacement = false;
 
 // Full font-safe reset to whatever parameters currently sit at ppRva.
 // fallbackPp (may be null): parameter block restored into ppRva when the
@@ -167,30 +171,52 @@ bool resetSequence(unsigned char* fallbackPp, const char* reason) {
     return ok;
 }
 
-// Desktop mode of the monitor holding the window (exclusive at the native
-// resolution: no display-mode change, still true page-flipped exclusive).
-bool desktopModeForHwnd(HWND hwnd, DisplayMode* out) {
+// Adapter-resolved desktop mode for the window's monitor, mirroring the
+// QOH99 reference: exclusive is only valid when the DEVICE'S OWN adapter
+// owns the window's monitor (GetAdapterMonitor match), the mode comes from
+// GetAdapterDisplayMode (D3D-side truth, includes the format), and a
+// mismatch refuses exclusive instead of risking a wrong-adapter takeover.
+bool adapterDesktopModeForHwnd(IDirect3DDevice9* dev, HWND hwnd,
+                               DisplayMode* out) {
+    IDirect3D9* d3d = nullptr;
+    if (FAILED(dev->GetDirect3D(&d3d)) || !d3d) return false;
     HMONITOR mon = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
-    MONITORINFOEXA mi;
-    memset(&mi, 0, sizeof(mi));
-    mi.cbSize = sizeof(mi);
-    if (!mon || !GetMonitorInfoA(mon, reinterpret_cast<MONITORINFO*>(&mi))) return false;
-    DEVMODEA dm;
-    memset(&dm, 0, sizeof(dm));
-    dm.dmSize = sizeof(dm);
-    if (!EnumDisplaySettingsA(mi.szDevice, ENUM_CURRENT_SETTINGS, &dm)) {
-        return false;
+    bool found = false;
+    UINT adapterCount = d3d->GetAdapterCount();
+    for (UINT a = 0; a < adapterCount && !found; ++a) {
+        if (d3d->GetAdapterMonitor(a) != mon) continue;
+        D3DDISPLAYMODE mode;
+        if (SUCCEEDED(d3d->GetAdapterDisplayMode(a, &mode)) && mode.Width &&
+            mode.Height) {
+            out->w = long(mode.Width);
+            out->h = long(mode.Height);
+            out->refresh = long(mode.RefreshRate);
+            out->format = mode.Format;
+            found = true;
+        }
     }
-    out->w = long(dm.dmPelsWidth);
-    out->h = long(dm.dmPelsHeight);
-    out->refresh = long(dm.dmDisplayFrequency);
-    return out->w > 0 && out->h > 0;
+    d3d->Release();
+    return found;
+}
+
+void restoreWindowedFrame(HWND hwnd) {
+    if (!g_fsSavedWindowPlacement || !hwnd) return;
+    SetWindowLongPtrA(hwnd, GWL_STYLE, g_fsSavedStyle);
+    SetWindowLongPtrA(hwnd, GWL_EXSTYLE, g_fsSavedExStyle);
+    SetWindowPos(hwnd, HWND_TOP, g_fsSavedRect.left, g_fsSavedRect.top,
+                 g_fsSavedRect.right - g_fsSavedRect.left,
+                 g_fsSavedRect.bottom - g_fsSavedRect.top,
+                 SWP_NOACTIVATE | SWP_FRAMECHANGED);
+    g_fsSavedWindowPlacement = false;
 }
 
 void enterExclusive(HWND hwnd) {
     DisplayMode mode;
-    if (!desktopModeForHwnd(hwnd, &mode)) {
-        DM_LOG("fullscreen: cannot query desktop mode; staying windowed");
+    IDirect3DDevice9* dev = *reinterpret_cast<IDirect3DDevice9**>(
+        g_obs.base + g_obs.profile->deviceRva);
+    if (!dev || !adapterDesktopModeForHwnd(dev, hwnd, &mode)) {
+        DM_LOG("fullscreen: device adapter does not own the window's "
+               "monitor, or mode query failed; refusing exclusive");
         return;
     }
     unsigned char* pp = g_obs.base + g_obs.profile->ppRva;
@@ -198,23 +224,52 @@ void enterExclusive(HWND hwnd) {
     ppSave(fallback, pp);
     ppSave(g_fsSavedPp, pp);
     ppEnterExclusive(pp, mode, uintptr_t(hwnd));
-    ppApplyVSync(pp, g_fsVSync);
-    DM_LOG("fullscreen: entering exclusive %ldx%ld@%ldhz", mode.w, mode.h,
-           mode.refresh);
+    // VSync: -1 keeps the exclusive default (IMMEDIATE, low latency);
+    // explicit 1 opts into vsync.
+    if (g_fsVSync == 1) ppApplyVSync(pp, 1);
+
+    // Window prep per the QOH99 reference: save style/exstyle/rect once,
+    // then a clean popup covering the monitor so no caption flashes during
+    // the mode transition.
+    if (!g_fsSavedWindowPlacement) {
+        g_fsSavedStyle = GetWindowLongPtrA(hwnd, GWL_STYLE);
+        g_fsSavedExStyle = GetWindowLongPtrA(hwnd, GWL_EXSTYLE);
+        GetWindowRect(hwnd, &g_fsSavedRect);
+        g_fsSavedWindowPlacement = true;
+    }
+    SetWindowLongPtrA(hwnd, GWL_STYLE, WS_POPUP | WS_VISIBLE);
+    SetWindowLongPtrA(hwnd, GWL_EXSTYLE, WS_EX_APPWINDOW);
+    HMONITOR mon = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+    MONITORINFO mi;
+    memset(&mi, 0, sizeof(mi));
+    mi.cbSize = sizeof(mi);
+    if (mon && GetMonitorInfoA(mon, &mi)) {
+        SetWindowPos(hwnd, HWND_TOP, mi.rcMonitor.left, mi.rcMonitor.top,
+                     mi.rcMonitor.right - mi.rcMonitor.left,
+                     mi.rcMonitor.bottom - mi.rcMonitor.top,
+                     SWP_NOACTIVATE | SWP_FRAMECHANGED);
+    }
+
+    DM_LOG("fullscreen: entering exclusive %ldx%ld@%ldhz fmt=%lu interval=%s",
+           mode.w, mode.h, mode.refresh, mode.format,
+           g_fsVSync == 1 ? "one" : "immediate");
     if (resetSequence(fallback, "fullscreen-enter")) {
         g_fsExclusive = true;
     } else {
         // resetSequence already restored the windowed parameters.
+        restoreWindowedFrame(hwnd);
         DM_LOG("fullscreen: enter failed; staying windowed");
     }
 }
 
-void exitExclusive() {
+void exitExclusive(HWND hwnd) {
     unsigned char* pp = g_obs.base + g_obs.profile->ppRva;
     unsigned char fallback[kPp_Size];
     ppSave(fallback, pp);
     ppRestoreWindowed(pp, g_fsSavedPp);
+    // Explicit VSync choices also apply windowed; -1 keeps the wrapper's.
     ppApplyVSync(pp, g_fsVSync);
+    restoreWindowedFrame(hwnd);
     DM_LOG("fullscreen: exiting to windowed");
     if (resetSequence(fallback, "fullscreen-exit")) {
         g_fsExclusive = false;
@@ -322,7 +377,7 @@ extern "C" void dmFlipEntryWork() {
         if (!g_fsExclusive) {
             enterExclusive(hwnd);
         } else {
-            exitExclusive();
+            exitExclusive(hwnd);
         }
         return;  // one switch per flip; evaluate sizes on the next one
     }

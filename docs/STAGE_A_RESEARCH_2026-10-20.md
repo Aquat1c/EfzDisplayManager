@@ -433,7 +433,40 @@ The v0.2.0 `stage-a-observe` module ran inside the game on 2026-10-20
   runtime geometry (dstRect letterbox values). The observation hook logs all
   of these automatically when they occur.
 
-## 12. Stage A implementation record (v0.2.0 → v0.5.0, 2026-10-20)
+## 12. Stage A implementation record (v0.2.0 → v0.5.1, 2026-10-20)
+
+**v0.5.1 reference alignment** (against `D:\dev\qoh_99\ddraw_wrapper`, the
+user's QOH'99 wrapper, reviewed as the exclusive-fullscreen reference with
+low input latency as the goal):
+
+- `PresentationInterval = D3DPRESENT_INTERVAL_IMMEDIATE` is now the
+  exclusive default (the reference's deliberate low-latency choice); the
+  wrapper's interval is no longer inherited into exclusive mode, where at
+  60 Hz it would both add latency and fight the 63.9 Hz game timer.
+  `VSync=1` opts into vsync explicitly.
+- Exclusive backbuffer format now comes from
+  `IDirect3D9::GetAdapterDisplayMode` (the reference's D3D-side truth)
+  instead of inheriting the wrapper's windowed format.
+- Exclusive is refused unless the DEVICE'S adapter owns the window's monitor
+  (`GetAdapterMonitor` == `MonitorFromWindow`), like the reference's
+  multi-adapter guard; logged as a refusal.
+- Window prep per the reference: style/exstyle/rect saved once, then
+  `WS_POPUP|WS_VISIBLE` + `WS_EX_APPWINDOW` covering the monitor during
+  exclusive (no caption flash), restored exactly on exit - including on a
+  failed enter.
+- Not ported (documented): the reference's D3D9Ex FlipEx windowed path with
+  `SetMaximumFrameLatency(1)` - it requires recreating the device, which is
+  the wrapper's; and their Fullscreen-Optimizations caveat applies to us
+  too.
+- Live-verified: startup enter at 2560x1440@240Hz, fmt=22 (desktop format),
+  interval=immediate, surfaces 1/1, letterbox intact, adapter validated;
+  focus-loss lost/recovered cycle clean. Evidence:
+  [evidence/runtime-exclusive-fs-v2.txt](evidence/runtime-exclusive-fs-v2.txt).
+  F11-exit under SendKeys automation remains focus-starved; the exit path is
+  the same verified reset machinery + unit-tested parameter/window restore -
+  confirm with one manual keypress.
+
+The sections below describe earlier versions as implemented at the time.
 
 **v0.5.0 `exclusive-fullscreen` (ported with the creator's permission):**
 exclusive fullscreen at the window monitor's desktop mode (no display-mode

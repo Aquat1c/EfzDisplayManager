@@ -52,7 +52,7 @@ Output: `build-xp/Release/DisplayManager.dll` (PE32, OS 5.01).
 | `BackgroundColor` | 000000 | letterbox border color (RRGGBB) |
 | `Fullscreen` | 0 | start in exclusive fullscreen (desktop mode) |
 | `FullscreenHotkey` | 1 | F11 toggles exclusive fullscreen |
-| `VSync` | -1 | -1 keep wrapper interval / 0 immediate / 1 vsync |
+| `VSync` | -1 | -1 keep wrapper interval in windowed, IMMEDIATE in exclusive / 0 immediate / 1 vsync |
 | `WindowAdjustStyle` | 1 | enable maximize box on the fixed-size window |
 | `WindowDragResize` | 1 | sizing border; drag pauses the game while held |
 | `ResizeBackBuffer` | 1 | backbuffer follows maximize/restore/resize |

@@ -4,7 +4,7 @@
 #define DM_VERSION_MINOR 3
 #define DM_VERSION_PATCH 0
 
-#define DM_VERSION_STRING "0.5.0"
+#define DM_VERSION_STRING "0.5.1"
 
 // Development stage marker. "exclusive-fullscreen": the final-blit hook now applies
 // configured output geometry (aspect-fit / integer / custom, centered),

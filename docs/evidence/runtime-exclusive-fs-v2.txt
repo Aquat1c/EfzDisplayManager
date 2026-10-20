@@ -1,0 +1,38 @@
+[19:21:05.663] EFZ DisplayManager v0.5.0 (exclusive-fullscreen): attached, deferring to bootstrap worker
+[19:21:05.667] admission: DDRAW.dll loaded at 71a90000 (D:\EFZ_FULLPACK\DDRAW.dll)
+[19:21:05.672] admission: file SHA-256: 0e072342d87d240e18969bc3663032e0e370eaba24d1fbb8e6c1f6216ad9f603
+[19:21:05.672] admission: profile accepted: renderer-split Revival 1.02j (2026-08-02) (PE timestamp 6a6f1795)
+[19:21:05.922] bootstrap: wrapper device 08a691e0, native surface 08a58e80
+[19:21:06.122] window: style 14ca0000 -> 14cf0000 (maximize enabled + drag-resize (pauses game during drag), client preserved)
+[19:21:06.155] detour: installed 6-byte hook at 71ab79c0 (target 73712cb0)
+[19:21:06.155] fullscreen: exclusive requested at startup (F11 toggles)
+[19:21:06.158] surfaces: native 640x480, backbuffer 1280x960 (src 08a58e80 dst 08a59100)
+[19:21:06.158] flip #1: dstRect=NULL(full) filter=2 pp=1280x960 borderless=0 <changed>
+[19:21:06.158] adapt: -> (0,0,1280,960) 1280x960 filter=2 (was 2)
+[19:21:06.173] flip #2: dstRect=NULL(full) filter=2 pp=1280x960 borderless=0
+[19:21:06.173] adapt: -> (0,0,1280,960) 1280x960 filter=2 (was 2)
+[19:21:06.185] detour: installed 7-byte entry hook at 71ab7860 (trampoline 73717010)
+[19:21:06.185] bootstrap: hook active (observe + adapt: mode=0 scale=0 custom=640x480 filter=0 bg=000000)
+[19:21:06.190] fullscreen: entering exclusive 2560x1440@240hz fmt=22 interval=immediate
+[19:21:06.252] fullscreen-enter: surface recreation staging=1 native=1
+[19:21:06.253] surfaces: native 640x480, backbuffer 2560x1440 (src 101a81a0 dst 101a91e0)
+[19:21:06.253] flip #3: dstRect=NULL(full) filter=2 pp=2560x1440 borderless=0 <changed>
+[19:21:06.253] flip #3: native/device pointer changed (post-reset recreation)
+[19:21:06.253] adapt: -> (320,0,2240,1440) 1920x1440 filter=2 (was 2)
+[19:21:06.255] flip #4: dstRect=NULL(full) filter=2 pp=2560x1440 borderless=0
+[19:21:06.255] adapt: -> (320,0,2240,1440) 1920x1440 filter=2 (was 2)
+[19:21:06.267] flip #5: dstRect=NULL(full) filter=2 pp=2560x1440 borderless=0
+[19:21:06.267] adapt: -> (320,0,2240,1440) 1920x1440 filter=2 (was 2)
+[19:21:06.283] flip #6: dstRect=NULL(full) filter=2 pp=2560x1440 borderless=0
+[19:21:06.283] adapt: -> (320,0,2240,1440) 1920x1440 filter=2 (was 2)
+[19:21:15.579] flip #600: dstRect=NULL(full) filter=2 pp=2560x1440 borderless=0
+[19:21:15.579] adapt: -> (320,0,2240,1440) 1920x1440 filter=2 (was 2)
+[19:21:17.896] device: D3DERR_DEVICELOST - skipping frames until resettable
+[19:21:24.005] device: D3DERR_DEVICENOTRESET - recovering
+[19:21:24.089] device-recovery: surface recreation staging=1 native=1
+[19:21:24.089] device: recovered after D3DERR_DEVICENOTRESET
+[19:21:24.090] stall: 6235 ms without a flip (modal move/size loop, focus loss, or blocking wait)
+[19:21:24.090] surfaces: native 640x480, backbuffer 2560x1440 (src 11bad680 dst 11bad040)
+[19:21:24.090] flip #746: dstRect=NULL(full) filter=2 pp=2560x1440 borderless=0 <changed>
+[19:21:24.090] flip #746: native/device pointer changed (post-reset recreation)
+[19:21:24.090] adapt: -> (320,0,2240,1440) 1920x1440 filter=2 (was 2)

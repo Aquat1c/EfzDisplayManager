@@ -8,6 +8,7 @@ struct DisplayMode {
     long w = 0;
     long h = 0;
     long refresh = 0;
+    unsigned long format = 0;  // D3DFMT_* from the adapter desktop mode
 };
 
 // D3DPRESENT_PARAMETERS field offsets (x86, 0x38-byte struct) - the wrapper's
@@ -15,6 +16,7 @@ struct DisplayMode {
 enum : uint32_t {
     kPp_BackBufferWidth = 0x00,
     kPp_BackBufferHeight = 0x04,
+    kPp_BackBufferFormat = 0x08,
     kPp_SwapEffect = 0x18,
     kPp_DeviceWindow = 0x1C,
     kPp_Windowed = 0x20,
@@ -28,9 +30,11 @@ constexpr uint32_t kSwapEffectDiscard = 1;
 // Snapshots the current parameters (used to restore windowed mode later).
 void ppSave(unsigned char* dst, const unsigned char* src);
 
-// Converts a live parameter block to exclusive fullscreen at the given mode:
-// backbuffer = mode, Windowed = FALSE, SwapEffect = DISCARD (required for
-// predictable exclusive behavior), refresh set, device window pinned.
+// Converts a live parameter block to exclusive fullscreen at the given
+// mode: backbuffer = mode (including the adapter's desktop format),
+// Windowed = FALSE, SwapEffect = DISCARD, refresh set, device window pinned,
+// presentation interval IMMEDIATE (the low-latency default; the caller can
+// override afterward for explicit vsync).
 void ppEnterExclusive(unsigned char* pp, const DisplayMode& mode, uintptr_t hwnd);
 
 // Restores a windowed parameter block from a snapshot.

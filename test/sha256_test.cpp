@@ -151,14 +151,16 @@ static void runFullscreenTests() {
 
     unsigned char saved[dm::kPp_Size];
     dm::ppSave(saved, pp);
-    dm::DisplayMode m{2560, 1440, 144};
+    dm::DisplayMode m{2560, 1440, 144, 22};  // 22 = D3DFMT_X8R8G8B8
     dm::ppEnterExclusive(pp, m, 0x12345678);
     bool ok = r32(pp, dm::kPp_BackBufferWidth) == 2560 &&
               r32(pp, dm::kPp_BackBufferHeight) == 1440 &&
               r32(pp, dm::kPp_SwapEffect) == dm::kSwapEffectDiscard &&
               r32(pp, dm::kPp_DeviceWindow) == 0x12345678 &&
               r32(pp, dm::kPp_Windowed) == 0 &&
-              r32(pp, dm::kPp_RefreshRate) == 144;
+              r32(pp, dm::kPp_RefreshRate) == 144 &&
+              r32(pp, dm::kPp_BackBufferFormat) == 22 &&
+              r32(pp, dm::kPp_PresentationInterval) == 0;  // IMMEDIATE
     if (ok) std::printf("PASS fs enter-exclusive fields\n");
     else { std::printf("FAIL fs enter-exclusive fields\n"); ++failures; }
 
