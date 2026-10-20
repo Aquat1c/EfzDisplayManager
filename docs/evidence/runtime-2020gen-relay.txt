@@ -1,0 +1,23 @@
+[19:43:14.481] EFZ DisplayManager v0.5.1 (exclusive-fullscreen): attached, deferring to bootstrap worker
+[19:43:14.485] admission: DDRAW.dll loaded at 71b10000 (D:\EFZ_RELAY\DDRAW.dll)
+[19:43:14.488] admission: file SHA-256: c486903e82037ea6eb648fce662a9ebc8c60537629a84fdbed573b7ed9045f7a
+[19:43:14.488] admission: profile accepted: Revival 2020-generation wrapper (1.02e-era) (PE timestamp 5ea72e7f)
+[19:43:14.740] bootstrap: wrapper device 08d76f80, native surface 08df5940
+[19:43:14.969] window: style 14ca0000 -> 14cf0000 (maximize enabled + drag-resize (pauses game during drag), client preserved)
+[19:43:15.003] detour: installed 6-byte hook at 71b2fc1f (target 73712cf0)
+[19:43:15.003] detour: entry site bytes mismatch at +6 (found 83, expected 00); not patching
+[19:43:15.003] bootstrap: entry hook failed; resize disabled (final-blit hook stays active)
+[19:43:15.003] bootstrap: hook active (observe + adapt: mode=0 scale=0 custom=640x480 filter=0 bg=000000)
+[19:43:15.017] surfaces: native 640x480, backbuffer 1280x960 (src 08df5940 dst 08df5620)
+[19:43:15.017] flip #1: dstRect=NULL(full) filter=2 pp=1280x960 borderless=0 <changed>
+[19:43:15.017] adapt: -> (0,0,1280,960) 1280x960 filter=2 (was 2)
+[19:43:15.034] flip #2: dstRect=NULL(full) filter=2 pp=1280x960 borderless=0
+[19:43:15.034] adapt: -> (0,0,1280,960) 1280x960 filter=2 (was 2)
+[19:43:15.049] flip #3: dstRect=NULL(full) filter=2 pp=1280x960 borderless=0
+[19:43:15.049] adapt: -> (0,0,1280,960) 1280x960 filter=2 (was 2)
+[19:43:15.064] flip #4: dstRect=NULL(full) filter=2 pp=1280x960 borderless=0
+[19:43:15.064] adapt: -> (0,0,1280,960) 1280x960 filter=2 (was 2)
+[19:43:18.777] flip #241: dstRect=(159,0,1119,960) 960x960 filter=2 pp=1280x960 borderless=1 <changed>
+[19:43:18.777] adapt: -> (0,0,1280,960) 1280x960 filter=2 (was 2)
+[19:43:19.993] flip #318: dstRect=NULL(full) filter=2 pp=1280x960 borderless=0 <changed>
+[19:43:19.993] adapt: -> (0,0,1280,960) 1280x960 filter=2 (was 2)

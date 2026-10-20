@@ -8,6 +8,7 @@
 
 #include "../src/format.h"
 #include "../src/fullscreen.h"
+#include "../src/profiles.h"
 #include "../src/geometry.h"
 #include "../src/resize.h"
 #include "../src/sha256.h"
@@ -180,6 +181,35 @@ static void runFullscreenTests() {
     else { std::printf("FAIL fs restore-windowed roundtrip\n"); ++failures; }
 }
 
+
+static void runProfileTests() {
+    struct Case {
+        const char* path;
+        const dm::DdrawProfile& (*fn)();
+    };
+    Case cases[] = {
+        {"F:\\EFZ - Copy\\DDRAW.dll", &dm::rev2020Profile},
+        {"D:\\EFZ + Reviva 1.02f\\DDRAW.dll", &dm::rev102fProfile},
+        {"D:\\EFZ+Revival 1.02g\\DDRAW.dll", &dm::rev102gProfile},
+        {"D:\\EFZ + Revival 1.02h\\DDRAW.dll", &dm::rev102hProfile},
+        {"F:\\EFZ + Revival 1.02i\\DDRAW.dll", &dm::rev102iProfile},
+    };
+    for (int ci = 0; ci < 5; ++ci) {
+        unsigned char h[32];
+        if (!dm::sha256File(cases[ci].path, h)) {
+            std::printf("FAIL profile %s: unreadable\n", cases[ci].path);
+            ++failures;
+            continue;
+        }
+        const dm::DdrawProfile& p = cases[ci].fn();
+        bool ok = true;
+        for (int i = 0; i < 32; ++i)
+            if (h[i] != p.ddrawSha256[i]) { ok = false; break; }
+        if (ok) std::printf("PASS profile %s\n", p.name);
+        else { std::printf("FAIL profile %s hash mismatch\n", p.name); ++failures; }
+    }
+}
+
 static void expectFormat(const char* label, const char* expected, const char* fmt, ...) {
     char out[512];
     va_list args;
@@ -319,6 +349,7 @@ int main(int argc, char** argv) {
     expect("56x'a", buf, 56,
            "b35439a4ac6f0948b6d6f9e3c6af0f5f590ce20f1bde7090ef7970686ec6738a");
 
+    runProfileTests();
     runFullscreenTests();
     runResizeTests();
     runGeometryTests();

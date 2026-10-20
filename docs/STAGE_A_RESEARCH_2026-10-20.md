@@ -433,7 +433,46 @@ The v0.2.0 `stage-a-observe` module ran inside the game on 2026-10-20
   runtime geometry (dstRect letterbox values). The observation hook logs all
   of these automatically when they occur.
 
-## 12. Stage A implementation record (v0.2.0 → v0.5.1, 2026-10-20)
+## 12. Stage A implementation record (v0.2.0 → v0.5.2, 2026-10-20)
+
+**v0.5.2 all-copies support:** DisplayManager now admits every Revival
+wrapper generation found across the user's game copies. A disk-wide
+inventory (hash + PE timestamp) found SEVEN distinct Revival DDRAW.dll
+binaries; all seven are now pinned:
+
+| Wrapper | SHA-256 prefix | Notes |
+|---|---|---|
+| Renderer-split 1.02j | `0e072342…` | since v0.2.0 |
+| Original 1.02j | `e18abe00…` | profile since v0.4.0 (static) |
+| 2020-generation | `c486903e…` | EFZ_clean, EFZ_RELAY, F:\EFZ, F:\EFZ - Copy (1.02e), F:\EFZ - Copy (2), capture_diag |
+| 1.02f | `712a45d3…` | D:\EFZ + Reviva 1.02f |
+| 1.02g | `295b3f3f…` | D:\EFZ+Revival 1.02g |
+| 1.02h | `4d83369b…` | D:\EFZ + Revival 1.02h, F:\…Concerto pack |
+| 1.02i | `606601cc…` | F:\EFZ + Revival 1.02i (code shifted +0xB0) |
+
+The 2020 generation (all five new builds) shares the J-generation
+renderer-object layout exactly - verified via its exported MSVC-mangled
+symbols (`?isFullscreen@EfzRender` = `mov al,[ecx+0x71]` confirming
+borderless +0x71, `?initTextRender` confirming font +0x74), the same
+final-blit bytes (`ff 90 88 00 00 00`), and `Flip ret 0xC`; only code RVAs
+differ (1.02f/g/h identical to the 2020 original; 1.02i shifted). The
+non-Revival wrappers under `gamecopy/` (memorial, 2v2, netmatch) and the
+odd 580,608-byte variant are intentionally NOT admitted - different
+projects' binaries.
+
+A transcription lesson worth recording: the first hand-typed hash literals
+contained late-byte typos that only surfaced at runtime (admission
+correctly refused); literals are now generated programmatically from the
+actual files and locked by a new test that hashes each real wrapper
+against its profile (five machine-verified PASS cases; 47 tests total).
+Deployed to all eight manager-equipped copies and runtime-verified live:
+profile accepted + hooks active + adaptation logging in every one,
+including the user's original 1.02e test copy (`F:\EFZ - Copy`). Evidence:
+[evidence/runtime-2020gen-relay.txt](evidence/runtime-2020gen-relay.txt).
+The original-J backup folder has no mod manager; its profile is
+static-verified and will be runtime-confirmed when that copy gets a loader.
+
+The sections below describe earlier versions as implemented at the time.
 
 **v0.5.1 reference alignment** (against `D:\dev\qoh_99\ddraw_wrapper`, the
 user's QOH'99 wrapper, reviewed as the exclusive-fullscreen reference with

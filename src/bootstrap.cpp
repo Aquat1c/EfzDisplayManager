@@ -83,8 +83,12 @@ DWORD WINAPI bootstrapThread(void* param) {
     }
 
     const DdrawProfile* profile = nullptr;
-    const DdrawProfile* candidates[] = {&splitJProfile(), &originalJProfile()};
-    for (int c = 0; c < 2 && !profile; ++c) {
+    const DdrawProfile* candidates[] = {
+        &splitJProfile(),  &originalJProfile(), &rev2020Profile(),
+        &rev102fProfile(), &rev102gProfile(),   &rev102hProfile(),
+        &rev102iProfile(),
+    };
+    for (int c = 0; c < 7 && !profile; ++c) {
         bool hashOk = true;
         for (int i = 0; i < 32; ++i) {
             if (hash[i] != candidates[c]->ddrawSha256[i]) {
