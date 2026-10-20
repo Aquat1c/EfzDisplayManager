@@ -13,14 +13,15 @@ conversion, timer, input, and Revival session behavior in place.
 |---|---|
 | Feasibility assessment | Complete — see [EFZ_DisplayManager_Feasibility_2026-10-20.md](EFZ_DisplayManager_Feasibility_2026-10-20.md), especially section 16 (agent implementation handoff) |
 | Stage A research (anchors verified, contracts mapped) | Complete — see [docs/STAGE_A_RESEARCH_2026-10-20.md](docs/STAGE_A_RESEARCH_2026-10-20.md) |
-| Stage A observation prototype (v0.2.0) | **Implemented and runtime-verified**: hash-pinned admission (both 1.02j Ddraws), forward-only hook at the wrapper's final StretchRect, ~3600 forwarded flips observed in-game (windowed) with the native path fully preserved |
-| Display adaptation (aspect/integer output, Point filter) | Not started |
+| v0.2.0 observation | **Runtime-verified**: hash-pinned admission (both 1.02j Ddraws), forward-only hook at the wrapper's final StretchRect, ~3600 flips observed in-game |
+| v0.3.0 output adaptation (aspect/integer/custom geometry, Point filter, border fill) | **Implemented and runtime-verified**: defaults reproduce native output exactly; IntegerScale=1 + Point produced a centered 640x480 rect with borders, stable in-game |
 | In-game full qualification matrix | Not started |
 
-Current code state: transparent observation module. It loads, admits the
-wrapper by SHA-256 + PE timestamp, installs one forward-only hook at the
-shared final-blit call site, logs the observed geometry (throttled), and
-changes nothing about what is drawn.
+Current code state: output adaptation module (stage `adapt-rect`). It loads,
+admits the wrapper by SHA-256 + PE timestamp, hooks the shared final-blit call
+site, and applies configured output geometry (Mode/IntegerScale/Custom,
+Filter, BackgroundColor) with defaults that reproduce native output. Sharp
+shaders, window interaction, and reset-owning resources are later gates.
 
 ## Build
 

@@ -117,11 +117,13 @@ DWORD WINAPI bootstrapThread(void* param) {
     DM_LOG("bootstrap: wrapper device %p, native surface %p",
            device, *reinterpret_cast<void**>(base + profile->nativeSurfaceRva));
 
-    // 4. Install the forward-only observation hook.
+    // 4. Install the observation/adaptation hook.
     HookConfig hc;
     hc.logFirst = cfg.logFirst;
     hc.logEvery = cfg.logEvery;
     setHookContext(base, profile, hc);
+    setAdaptConfig(cfg.mode, cfg.integerScale, cfg.customWidth, cfg.customHeight,
+                   cfg.filter, cfg.backgroundColor);
     unsigned char* site = base + profile->finalStretchRva;
     if (!installDetour(site, profile->hookBytes, sizeof(profile->hookBytes),
                        reinterpret_cast<const void*>(&dmFinalStretchHook),
@@ -130,7 +132,10 @@ DWORD WINAPI bootstrapThread(void* param) {
         return 0;
     }
     g_hookSite = site;
-    DM_LOG("bootstrap: Stage A observation hook active (forward-only)");
+    DM_LOG("bootstrap: hook active (observe + adapt: mode=%d scale=%d "
+           "custom=%dx%d filter=%lu bg=%06lx)",
+           int(cfg.mode), cfg.integerScale, cfg.customWidth, cfg.customHeight,
+           cfg.filter, cfg.backgroundColor & 0xFFFFFFUL);
     return 0;
 }
 

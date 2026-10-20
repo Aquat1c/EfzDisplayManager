@@ -433,7 +433,23 @@ The v0.2.0 `stage-a-observe` module ran inside the game on 2026-10-20
   runtime geometry (dstRect letterbox values). The observation hook logs all
   of these automatically when they occur.
 
-## 12. Stage A implementation record (v0.2.0, 2026-10-20)
+## 12. Stage A implementation record (v0.2.0 → v0.3.0, 2026-10-20)
+
+**v0.3.0 `adapt-rect` (same day):** output-geometry adaptation is live and
+runtime-verified. The hook now computes a centered destination rectangle from
+the actual surface dimensions (aspect-fit / integer / custom, pure integer
+arithmetic — no floating point in the hook path at all), optionally overrides
+the filter (Point), and fills letterbox borders with a configurable color
+before the blit. Defaults (`FitToScreen` + `Linear`) reproduce native output
+exactly on a 4:3 output (verified: rect `(0,0,1280,960)`, filter passthrough).
+A full-adaptation run (`IntegerScaling=1` + `Point`) produced the centered
+640x480 rect `(320,240,960,720)` with filter override and borders, stable
+in-game. Evidence:
+[runtime-adapt-default.txt](evidence/runtime-adapt-default.txt),
+[runtime-adapt-integer1.txt](evidence/runtime-adapt-integer1.txt).
+Geometry is unit-tested (`dm_sha256_test`, 31 cases total); one code/doc
+mismatch (IntegerScale=0 semantics) and two wrong test expectations were
+caught by the tests before deployment.
 
 - Module: `mods/DisplayManager/DisplayManager.dll`, loaded by EfzModManager;
   DllMain only logs + starts a worker (loader-lock discipline).

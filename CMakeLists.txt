@@ -14,6 +14,7 @@ add_library(DisplayManager SHARED
     src/detour.cpp
     src/dllmain.cpp
     src/format.cpp
+    src/geometry.cpp
     src/hook_flip.cpp
     src/logging.cpp
     src/nocrt.cpp
@@ -57,7 +58,7 @@ endif()
 set_source_files_properties(src/nocrt.cpp PROPERTIES COMPILE_OPTIONS "/Oi-")
 
 # Self-test (normal CRT console app; not deployed).
-add_executable(dm_sha256_test test/sha256_test.cpp src/format.cpp src/sha256.cpp)
+add_executable(dm_sha256_test test/sha256_test.cpp src/format.cpp src/geometry.cpp src/sha256.cpp)
 target_include_directories(dm_sha256_test PRIVATE src)
 if(MSVC)
     target_compile_options(dm_sha256_test PRIVATE /W4)

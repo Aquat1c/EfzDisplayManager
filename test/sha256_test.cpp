@@ -7,9 +7,62 @@
 #include <cstring>
 
 #include "../src/format.h"
+#include "../src/geometry.h"
 #include "../src/sha256.h"
 
 static int failures = 0;
+
+static void expectSize(const char* label, long wantW, long wantH, int srcW,
+                       int srcH, int bbW, int bbH, dm::ScaleMode mode,
+                       int intScale, int customW, int customH) {
+    long w = -1, h = -1;
+    bool ok = dm::computeOutputSize(srcW, srcH, bbW, bbH, mode, intScale,
+                                    customW, customH, &w, &h);
+    if (ok && w == wantW && h == wantH) {
+        std::printf("PASS geo %s -> %ldx%ld\n", label, w, h);
+    } else {
+        std::printf("FAIL geo %s: got %ldx%ld want %ldx%ld (ok=%d)\n", label, w,
+                    h, wantW, wantH, int(ok));
+        ++failures;
+    }
+}
+
+static void runGeometryTests() {
+    using dm::ScaleMode;
+    expectSize("fit-4:3", 1280, 960, 640, 480, 1280, 960, ScaleMode::Fit, 0, 0, 0);
+    expectSize("fit-16:9", 1440, 1080, 640, 480, 1920, 1080, ScaleMode::Fit, 0, 0, 0);
+    expectSize("fit-16:10", 1400, 1050, 640, 480, 1680, 1050, ScaleMode::Fit, 0, 0, 0);
+    expectSize("int-auto-1080p", 1280, 960, 640, 480, 1920, 1080,
+               ScaleMode::Integer, 0, 0, 0);
+    expectSize("int-auto-800x450", 640, 450, 640, 480, 800, 450,
+               ScaleMode::Integer, 0, 0, 0);
+    expectSize("int-1", 640, 480, 640, 480, 1920, 1080, ScaleMode::Integer, 1, 0, 0);
+    expectSize("int-3-clamped", 1280, 960, 640, 480, 1920, 1080,
+               ScaleMode::Integer, 3, 0, 0);
+    expectSize("int-2", 1280, 960, 640, 480, 1280, 960, ScaleMode::Integer, 2, 0, 0);
+    expectSize("custom-exact", 1024, 768, 640, 480, 1280, 960, ScaleMode::Custom,
+               0, 1024, 768);
+    expectSize("custom-clamped", 1280, 960, 640, 480, 1280, 960, ScaleMode::Custom,
+               0, 4000, 2000);
+    expectSize("custom-default", 640, 480, 640, 480, 1920, 1080,
+               ScaleMode::Custom, 0, 0, 0);
+
+    long l = -7, t = -7;
+    dm::centerRect(1920, 1080, 1440, 1080, &l, &t);
+    if (l == 240 && t == 0) {
+        std::printf("PASS geo center-16:9\n");
+    } else {
+        std::printf("FAIL geo center-16:9: (%ld,%ld)\n", l, t);
+        ++failures;
+    }
+    dm::centerRect(1280, 960, 640, 480, &l, &t);
+    if (l == 320 && t == 240) {
+        std::printf("PASS geo center-int1\n");
+    } else {
+        std::printf("FAIL geo center-int1: (%ld,%ld)\n", l, t);
+        ++failures;
+    }
+}
 
 static void expectFormat(const char* label, const char* expected, const char* fmt, ...) {
     char out[512];
@@ -150,6 +203,7 @@ int main(int argc, char** argv) {
     expect("56x'a", buf, 56,
            "b35439a4ac6f0948b6d6f9e3c6af0f5f590ce20f1bde7090ef7970686ec6738a");
 
+    runGeometryTests();
     runFormatTests();
 
     if (failures == 0) {

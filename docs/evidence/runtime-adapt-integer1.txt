@@ -1,0 +1,22 @@
+[17:42:14.657] EFZ DisplayManager v0.3.0 (adapt-rect): attached, deferring to bootstrap worker
+[17:42:14.660] admission: DDRAW.dll loaded at 72720000 (D:\EFZ_FULLPACK\DDRAW.dll)
+[17:42:14.665] admission: file SHA-256: 0e072342d87d240e18969bc3663032e0e370eaba24d1fbb8e6c1f6216ad9f603
+[17:42:14.665] admission: profile accepted: renderer-split Revival 1.02j (2026-08-02) (PE timestamp 6a6f1795)
+[17:42:14.916] bootstrap: wrapper device 0d57bd40, native surface 008bf900
+[17:42:14.947] detour: installed 6-byte hook at 727479c0 (target 73712080)
+[17:42:14.947] bootstrap: hook active (observe + adapt: mode=1 scale=1 custom=640x480 filter=1 bg=000000)
+[17:42:15.119] surfaces: native 640x480, backbuffer 1280x960 (src 008bf900 dst 008bf7c0)
+[17:42:15.119] flip #1: dstRect=NULL(full) filter=2 pp=1280x960 borderless=0 <changed>
+[17:42:15.119] adapt: -> (320,240,960,720) 640x480 filter=1 (was 2)
+[17:42:15.122] flip #2: dstRect=NULL(full) filter=2 pp=1280x960 borderless=0
+[17:42:15.122] adapt: -> (320,240,960,720) 640x480 filter=1 (was 2)
+[17:42:15.127] flip #3: dstRect=NULL(full) filter=2 pp=1280x960 borderless=0
+[17:42:15.127] adapt: -> (320,240,960,720) 640x480 filter=1 (was 2)
+[17:42:15.143] flip #4: dstRect=NULL(full) filter=2 pp=1280x960 borderless=0
+[17:42:15.143] adapt: -> (320,240,960,720) 640x480 filter=1 (was 2)
+[17:42:15.158] flip #5: dstRect=NULL(full) filter=2 pp=1280x960 borderless=0
+[17:42:15.158] adapt: -> (320,240,960,720) 640x480 filter=1 (was 2)
+[17:42:15.175] flip #6: dstRect=NULL(full) filter=2 pp=1280x960 borderless=0
+[17:42:15.175] adapt: -> (320,240,960,720) 640x480 filter=1 (was 2)
+[17:42:24.470] flip #600: dstRect=NULL(full) filter=2 pp=1280x960 borderless=0
+[17:42:24.470] adapt: -> (320,240,960,720) 640x480 filter=1 (was 2)

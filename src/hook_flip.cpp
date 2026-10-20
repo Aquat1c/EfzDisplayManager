@@ -4,18 +4,32 @@
 #include <d3d9.h>
 
 #include "format.h"
+#include "geometry.h"
 #include "logging.h"
 
 namespace dm {
 
 namespace {
 
+struct AdaptConfig {
+    bool active;
+    ScaleMode mode;
+    int integerScale;
+    int customWidth;
+    int customHeight;
+    unsigned long filterOverride;      // 0 = keep the wrapper's filter
+    unsigned long backgroundColor;     // ARGB
+};
+
 struct ObsState {
     unsigned char* base = nullptr;
     const DdrawProfile* profile = nullptr;
     HookConfig config = {8, 600};
+    AdaptConfig adapt;
+
     unsigned long calls = 0;
-    // Previous-frame snapshot for change detection.
+
+    // Previous-frame snapshot for observation change detection.
     bool hasPrev = false;
     IDirect3DSurface9* prevSrc = nullptr;
     IDirect3DSurface9* prevDst = nullptr;
@@ -26,6 +40,11 @@ struct ObsState {
     void* prevNative = nullptr;
     RECT prevRect = {};
     bool prevRectNull = true;
+
+    // Surface description cache, refreshed when the surface pointers change
+    // (also the post-reset recreation signal).
+    bool haveDescs = false;
+    unsigned long srcW = 0, srcH = 0, bbW = 0, bbH = 0;
 };
 
 ObsState g_obs;
@@ -41,6 +60,18 @@ void setHookContext(unsigned char* ddrawBase, const DdrawProfile* profile,
     g_obs.base = ddrawBase;
     g_obs.profile = profile;
     g_obs.config = config;
+}
+
+void setAdaptConfig(ScaleMode mode, int integerScale, int customWidth,
+                    int customHeight, unsigned long filterOverride,
+                    unsigned long backgroundColor) {
+    g_obs.adapt.active = true;
+    g_obs.adapt.mode = mode;
+    g_obs.adapt.integerScale = integerScale;
+    g_obs.adapt.customWidth = customWidth;
+    g_obs.adapt.customHeight = customHeight;
+    g_obs.adapt.filterOverride = filterOverride;
+    g_obs.adapt.backgroundColor = backgroundColor;
 }
 
 unsigned long hookCallCount() {
@@ -65,6 +96,29 @@ extern "C" void __stdcall dmFinalStretchHook(IDirect3DDevice9* dev,
     void* nativeGlobal =
         *reinterpret_cast<void**>(g_obs.base + g_obs.profile->nativeSurfaceRva);
 
+    // Refresh the surface description cache when the surfaces change.
+    if (!g_obs.haveDescs || src != g_obs.prevSrc || dst != g_obs.prevDst) {
+        D3DSURFACE_DESC sd = {}, dd = {};
+        bool ok = true;
+        if (src && SUCCEEDED(src->GetDesc(&sd)) && sd.Width && sd.Height) {
+            g_obs.srcW = sd.Width;
+            g_obs.srcH = sd.Height;
+        } else {
+            ok = false;
+        }
+        if (dst && SUCCEEDED(dst->GetDesc(&dd)) && dd.Width && dd.Height) {
+            g_obs.bbW = dd.Width;
+            g_obs.bbH = dd.Height;
+        } else {
+            ok = false;
+        }
+        g_obs.haveDescs = ok;
+        if (ok && dm::log::enabled()) {
+            DM_LOG("surfaces: native %ux%u, backbuffer %ux%u (src %p dst %p)",
+                   g_obs.srcW, g_obs.srcH, g_obs.bbW, g_obs.bbH, src, dst);
+        }
+    }
+
     const bool rectNull = dstRect == nullptr;
     const bool rectSame = rectNull == g_obs.prevRectNull &&
                           (rectNull || (dstRect->left == g_obs.prevRect.left &&
@@ -81,17 +135,6 @@ extern "C" void __stdcall dmFinalStretchHook(IDirect3DDevice9* dev,
                       g_obs.calls % unsigned(g_obs.config.logEvery) == 0);
 
     if ((changed || due) && dm::log::enabled()) {
-        D3DSURFACE_DESC sd = {}, dd = {};
-        char srcDesc[64] = "?";
-        char dstDesc[64] = "?";
-        if (src && SUCCEEDED(src->GetDesc(&sd))) {
-            dm::formatString(srcDesc, sizeof(srcDesc), "%ux%u pool=%u fmt=%u",
-                             sd.Width, sd.Height, sd.Pool, sd.Format);
-        }
-        if (dst && SUCCEEDED(dst->GetDesc(&dd))) {
-            dm::formatString(dstDesc, sizeof(dstDesc), "%ux%u pool=%u fmt=%u",
-                             dd.Width, dd.Height, dd.Pool, dd.Format);
-        }
         char rectText[80];
         if (rectNull) {
             dm::formatString(rectText, sizeof(rectText), "%s", "NULL(full)");
@@ -102,17 +145,15 @@ extern "C" void __stdcall dmFinalStretchHook(IDirect3DDevice9* dev,
                              dstRect->right - dstRect->left,
                              dstRect->bottom - dstRect->top);
         }
+        DM_LOG("flip #%u: dstRect=%s filter=%lu pp=%lux%lu borderless=%lu%s",
+               g_obs.calls, rectText, filter, ppW, ppH, borderless,
+               changed ? " <changed>" : "");
         if (g_obs.hasPrev &&
             (nativeGlobal != g_obs.prevNative || deviceGlobal != g_obs.prevDevice)) {
-            DM_LOG("flip #%u: native/device pointer changed (post-reset recreation): "
-                   "native %p->%p dev %p->%p",
-                   g_obs.calls, g_obs.prevNative, nativeGlobal, g_obs.prevDevice,
-                   deviceGlobal);
+            DM_LOG("flip #%u: native/device pointer changed (post-reset "
+                   "recreation)",
+                   g_obs.calls);
         }
-        DM_LOG("flip #%u: src=[%s] dst=[%s] dstRect=%s filter=%lu pp=%lux%lu "
-               "borderless=%lu%s",
-               g_obs.calls, srcDesc, dstDesc, rectText, filter, ppW, ppH, borderless,
-               changed ? " <changed>" : "");
     }
 
     g_obs.hasPrev = true;
@@ -127,9 +168,44 @@ extern "C" void __stdcall dmFinalStretchHook(IDirect3DDevice9* dev,
     g_obs.prevRectNull = rectNull;
     if (!rectNull) g_obs.prevRect = *dstRect;
 
-    // Forward-only Stage A: the original operation, unchanged.
-    dev->StretchRect(src, srcRect, dst, dstRect,
-                     static_cast<D3DTEXTUREFILTERTYPE>(filter));
+    // ---- Forwarding: adaptation or native passthrough ----
+    if (!g_obs.adapt.active || !g_obs.haveDescs) {
+        dev->StretchRect(src, srcRect, dst, dstRect,
+                         static_cast<D3DTEXTUREFILTERTYPE>(filter));
+        return;
+    }
+
+    long outW = 0, outH = 0;
+    if (!computeOutputSize(int(g_obs.srcW), int(g_obs.srcH), int(g_obs.bbW),
+                           int(g_obs.bbH), g_obs.adapt.mode,
+                           g_obs.adapt.integerScale, g_obs.adapt.customWidth,
+                           g_obs.adapt.customHeight, &outW, &outH)) {
+        dev->StretchRect(src, srcRect, dst, dstRect,
+                         static_cast<D3DTEXTUREFILTERTYPE>(filter));
+        return;
+    }
+
+    long left = 0, top = 0;
+    centerRect(g_obs.bbW, g_obs.bbH, outW, outH, &left, &top);
+    RECT outRect = {left, top, left + outW, top + outH};
+
+    const unsigned long effectiveFilter =
+        g_obs.adapt.filterOverride != 0 ? g_obs.adapt.filterOverride : filter;
+
+    if ((changed || due) && dm::log::enabled()) {
+        DM_LOG("adapt: -> (%ld,%ld,%ld,%ld) %ldx%ld filter=%lu (was %lu)",
+               outRect.left, outRect.top, outRect.right, outRect.bottom, outW,
+               outH, effectiveFilter, filter);
+    }
+
+    // Fill the letterbox border when the image does not cover the output.
+    if (outW < long(g_obs.bbW) || outH < long(g_obs.bbH)) {
+        dev->ColorFill(dst, nullptr,
+                       static_cast<D3DCOLOR>(g_obs.adapt.backgroundColor));
+    }
+
+    dev->StretchRect(src, srcRect, dst, &outRect,
+                     static_cast<D3DTEXTUREFILTERTYPE>(effectiveFilter));
 }
 
 }  // namespace dm

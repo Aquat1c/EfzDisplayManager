@@ -4,6 +4,7 @@
 
 #include <cstdint>
 
+#include "geometry.h"
 #include "profiles.h"
 
 struct IDirect3DDevice9;
@@ -20,15 +21,24 @@ struct HookConfig {
 void setHookContext(unsigned char* ddrawBase, const DdrawProfile* profile,
                     const HookConfig& config);
 
+// Enables output-geometry adaptation: every forwarded blit uses a computed
+// centered destination rectangle (see geometry.h), an optional filter
+// override (0 keeps the wrapper's filter), and border fill when the image
+// does not cover the output. Call before hook installation.
+void setAdaptConfig(ScaleMode mode, int integerScale, int customWidth,
+                    int customHeight, unsigned long filterOverride,
+                    unsigned long backgroundColor);
+
 // Observation state of the final-blit hook, for reporting at shutdown.
 unsigned long hookCallCount();
 
-// The Stage A observation hook. Installed over the wrapper's shared final
-// StretchRect call site (a 6-byte `call [eax+0x88]`) with an E8 call
-// encoding; __stdcall with the same 6 stack arguments reproduces the
-// original stack effect exactly. Forwards every call to
-// IDirect3DDevice9::StretchRect unchanged; observation is throttled and
-// read-only.
+// The final-blit hook. Installed over the wrapper's shared final StretchRect
+// call site (a 6-byte `call [eax+0x88]`) with an E8 call encoding;
+// __stdcall with the same 6 stack arguments reproduces the original stack
+// effect exactly. Without adaptation config it forwards every call
+// unchanged; with adaptation it replaces the destination rectangle/filter
+// and fills borders, leaving source, backbuffer, and presentation to the
+// wrapper.
 extern "C" void __stdcall dmFinalStretchHook(IDirect3DDevice9* dev,
                                              IDirect3DSurface9* src,
                                              const RECT* srcRect,

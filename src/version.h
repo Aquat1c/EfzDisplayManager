@@ -1,16 +1,16 @@
 #pragma once
 
 #define DM_VERSION_MAJOR 0
-#define DM_VERSION_MINOR 2
+#define DM_VERSION_MINOR 3
 #define DM_VERSION_PATCH 0
 
-#define DM_VERSION_STRING "0.2.0"
+#define DM_VERSION_STRING "0.3.0"
 
-// Development stage marker from the feasibility handoff (section 16.3).
-// "stage-a-observe": forward-only observation hook at the wrapper's final
-// StretchRect; every call is forwarded unchanged and the native display
-// path stays fully in charge.
-#define DM_STAGE_STRING "stage-a-observe"
+// Development stage marker. "adapt-rect": the final-blit hook now applies
+// configured output geometry (aspect-fit / integer / custom, centered),
+// an optional Point-filter override, and border fill; source, backbuffer,
+// and presentation remain the wrapper's.
+#define DM_STAGE_STRING "adapt-rect"
 
 namespace dm {
 
