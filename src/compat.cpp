@@ -41,8 +41,16 @@ bool g_trackingSuspended = false;
 template <typename T>
 inline void trackIfDefaultPool(D3DPOOL pool, T* obj) {
     if (pool != D3DPOOL_DEFAULT || !obj || g_trackingSuspended) return;
-    // We must not track resources WE create for the shader pipeline;
-    // shaders.cpp releases those explicitly around resets.
+    trackPointer(obj);
+}
+
+// Pointer-deduped tracking: some callers hand out the same object every
+// frame; unique pointers only. (GetBackBuffer is deliberately NOT tracked:
+// force-releasing it would eat the swapchain's own references.)
+inline void trackPointer(void* obj) {
+    for (int i = 0; i < g_trackedCount; ++i) {
+        if (g_tracked[i] == obj) return;
+    }
     if (g_trackedCount < 256) {
         g_tracked[g_trackedCount++] = obj;
     }

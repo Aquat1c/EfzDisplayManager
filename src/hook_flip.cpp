@@ -174,13 +174,44 @@ bool resetSequence(unsigned char* fallbackPp, const char* reason) {
 
     unsigned char* pp = g_obs.base + g_obs.profile->ppRva;
     HRESULT hr = dev->Reset(reinterpret_cast<D3DPRESENT_PARAMETERS*>(pp));
+    for (int attempt = 0; attempt < 3 && FAILED(hr); ++attempt) {
+        // Observed failure shape: Reset INVALIDCALL with the device left in
+        // DEVICENOTRESET - the reset landed on a device mid-transition
+        // (exclusive focus/mode events fire asynchronously). Retry a few
+        // times with a short settle, sweeping any re-created foreign
+        // resources between attempts.
+        const int more = compatReleaseForeignResources();
+        DM_LOG("%s: Reset failed hr=%08lx (TCL %08lx), retry %d (swept %d)",
+               reason, long(hr), long(dev->TestCooperativeLevel()), attempt,
+               more);
+        Sleep(20);
+        hr = dev->Reset(reinterpret_cast<D3DPRESENT_PARAMETERS*>(pp));
+    }
     const bool ok = SUCCEEDED(hr);
     if (!ok) {
-        DM_LOG("%s: Reset hr=%08lx - rolling back", reason, long(hr));
+        // Roll back to the pre-switch parameters and RESET THE DEVICE BACK
+        // TO THEM: the failed switch can leave the device in
+        // DEVICENOTRESET, and in that state new default-pool allocations
+        // fail too - without this recovery step the wrapper would be left
+        // with null surfaces (dead rendering). A Reset with the params the
+        // device was happily running before succeeds in this state (same
+        // fact the device-recovery path relies on), and then recreation
+        // below works.
+        DM_LOG("%s: Reset hr=%08lx (TCL %08lx) - rolling back", reason,
+               long(hr), long(dev->TestCooperativeLevel()));
         if (fallbackPp) memcpy(pp, fallbackPp, kPp_Size);
+        HRESULT hrBack =
+            dev->Reset(reinterpret_cast<D3DPRESENT_PARAMETERS*>(pp));
+        DM_LOG("%s: rollback reset hr=%08lx", reason, long(hrBack));
+        (void)hrBack;
     }
     void* s = recreator.recreate(dS);
     void* n = recreator.recreate(dN);
+    if (!s || !n) {
+        DM_LOG("%s: recreation failed (staging=%d native=%d, TCL %08lx)",
+               reason, s ? 1 : 0, n ? 1 : 0,
+               long(dev->TestCooperativeLevel()));
+    }
     DM_LOG("%s: surface recreation staging=%d native=%d", reason, s ? 1 : 0,
            n ? 1 : 0);
     if (s) storeSurface(g_obs.base, g_obs.profile->rendererObjectRva, s);
@@ -354,14 +385,19 @@ void exitExclusive(HWND hwnd) {
     ppRestoreWindowed(pp, g_fsSavedPp);
     // Explicit VSync choices also apply windowed; -1 keeps the wrapper's.
     ppApplyVSync(pp, g_fsVSync);
-    restoreWindowedFrame(hwnd);
+    // Reset FIRST, window frame after: touching the window
+    // (SWP_FRAMECHANGED) while the device still owns exclusive mode can
+    // trigger an asynchronous display-mode transition, and a Reset landing
+    // mid-transition returns INVALIDCALL (intermittent exit failures).
     DM_LOG("fullscreen: exiting to windowed");
     if (resetSequence(fallback, "fullscreen-exit")) {
+        restoreWindowedFrame(hwnd);
         g_fsExclusive = false;
         // Re-capture the resize baseline at the restored window size.
         g_resizeState = ResizeState();
     } else {
         // Parameters were rolled back to the exclusive block; still inside.
+        // The window frame stays exclusive too.
         DM_LOG("fullscreen: exit failed; staying exclusive");
     }
 }

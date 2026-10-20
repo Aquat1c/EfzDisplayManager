@@ -433,7 +433,39 @@ The v0.2.0 `stage-a-observe` module ran inside the game on 2026-10-20
   runtime geometry (dstRect letterbox values). The observation hook logs all
   of these automatically when they occur.
 
-## 12. Stage A implementation record (v0.2.0 → v0.7.2, 2026-10-20)
+## 12. Stage A implementation record (v0.2.0 → v0.8.0, 2026-10-20)
+
+**v0.8.0 exclusive-with-mods hardening** (full exclusive support alongside
+training/netplay, no borderless fallback needed):
+
+- Live-proven end to end on F:\EFZ - Copy with efz-training-mode +
+  efz_netplay_mod loaded: startup exclusive enter -> play (mods create
+  device resources lazily) -> Alt+Enter/F11 exit -> clean windowed return
+  (force-release sweep includes their ImGui buffers AND index buffers;
+  surface recreation 1/1; shaders rebuilt; evidence:
+  runtime-exclusive-roundtrip.txt, runtime-coexist-exit.txt).
+- Failure-shape forensics: a failed switch Reset can leave the device in
+  DEVICENOTRESET, where new default-pool allocations ALSO fail - the old
+  rollback left the wrapper with null surfaces (dead rendering). The
+  rollback now RESETS THE DEVICE BACK TO THE PRE-SWITCH PARAMETERS before
+  recreating, turning any failed switch into "stayed in the previous mode,
+  still rendering" instead of death.
+- Switch Resets retry up to 3 times (20 ms settle + fresh foreign sweep
+  between attempts); diagnostics log the cooperative level at every failure.
+- Exit ordering fixed: the device Reset runs BEFORE the window-frame
+  restore (touching the window mid-exclusive can start an asynchronous
+  display transition that the Reset then lands inside).
+- One reverted experiment recorded: tracking GetBackBuffer to release
+  cached backbuffer refs force-released into the swapchain's own
+  references and corrupted the device - deliberately NOT tracked.
+
+Known remaining edge (documented, guarded): switching modes while the
+exclusive device has LOST FOCUS (alt-tab then hotkey) can still fail all
+retries; the self-healing rollback keeps rendering alive in the previous
+mode and the next toggle succeeds once focus is back. In-game toggles with
+focus held - the normal path - work repeatedly.
+
+The sections below describe earlier versions as implemented at the time.
 
 **v0.7.2 rendering-death fix (user-reported: netplay worked in exclusive,
 then all rendering died on exit, F:\EFZ - Copy):** the compat layer only
