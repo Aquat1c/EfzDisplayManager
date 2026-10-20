@@ -143,6 +143,118 @@ image base: 0x64c00000  PE timestamp: 0x6a04fec7
   0x027942: 85c0                 test eax, eax
   0x027944: 0f8596010000         jne 0x64c27ae0
 
+--- geometry branch target (RVA 0x27960, VA 0x64c27960) ---
+  0x027960: c745cc00000000       mov dword ptr [ebp - 0x34], 0
+  0x027967: c745d000000000       mov dword ptr [ebp - 0x30], 0
+  0x02796e: c745d400000000       mov dword ptr [ebp - 0x2c], 0
+  0x027975: c745d800000000       mov dword ptr [ebp - 0x28], 0
+  0x02797c: c745dc00000000       mov dword ptr [ebp - 0x24], 0
+  0x027983: c745e000000000       mov dword ptr [ebp - 0x20], 0
+  0x02798a: c745e400000000       mov dword ptr [ebp - 0x1c], 0
+  0x027991: c745e800000000       mov dword ptr [ebp - 0x18], 0
+  0x027998: c745ec00000000       mov dword ptr [ebp - 0x14], 0
+  0x02799f: c745c828000000       mov dword ptr [ebp - 0x38], 0x28
+  0x0279a6: c744240402000000     mov dword ptr [esp + 4], 2
+  0x0279ae: a1ccf2cd64           mov eax, dword ptr [0x64cdf2cc]   ; abs 0x64cdf2cc (RVA 0xdf2cc)
+  0x0279b3: 890424               mov dword ptr [esp], eax
+  0x0279b6: ff1544c7d364         call dword ptr [0x64d3c744]   ; abs 0x64d3c744 (RVA 0x13c744)
+  0x0279bc: 8d55c8               lea edx, [ebp - 0x38]
+  0x0279bf: 83ec08               sub esp, 8
+  0x0279c2: 89542404             mov dword ptr [esp + 4], edx
+  0x0279c6: 890424               mov dword ptr [esp], eax
+  0x0279c9: ff1524c7d364         call dword ptr [0x64d3c724]   ; abs 0x64d3c724 (RVA 0x13c724)
+  0x0279cf: 8b03                 mov eax, dword ptr [ebx]
+  0x0279d1: 8d55b8               lea edx, [ebp - 0x48]
+  0x0279d4: 83ec08               sub esp, 8
+  0x0279d7: 89542408             mov dword ptr [esp + 8], edx
+  0x0279db: c744240400000000     mov dword ptr [esp + 4], 0
+  0x0279e3: 891c24               mov dword ptr [esp], ebx
+  0x0279e6: ff5020               call dword ptr [eax + 0x20]
+  0x0279e9: 8b45d4               mov eax, dword ptr [ebp - 0x2c]
+  0x0279ec: 2b45cc               sub eax, dword ptr [ebp - 0x34]
+  0x0279ef: 31c9                 xor ecx, ecx
+  0x0279f1: 83ec0c               sub esp, 0xc
+  0x0279f4: 894598               mov dword ptr [ebp - 0x68], eax
+  0x0279f7: db4598               fild dword ptr [ebp - 0x68]
+  0x0279fa: 8b45d8               mov eax, dword ptr [ebp - 0x28]
+  0x0279fd: 2b45d0               sub eax, dword ptr [ebp - 0x30]
+  0x027a00: 894d9c               mov dword ptr [ebp - 0x64], ecx
+  0x027a03: 8b1590f2cd64         mov edx, dword ptr [0x64cdf290]   ; abs 0x64cdf290 (RVA 0xdf290)
+  0x027a09: d95d98               fstp dword ptr [ebp - 0x68]
+  0x027a0c: d94598               fld dword ptr [ebp - 0x68]
+  0x027a0f: 894598               mov dword ptr [ebp - 0x68], eax
+  0x027a12: db4598               fild dword ptr [ebp - 0x68]
+  0x027a15: a18cf2cd64           mov eax, dword ptr [0x64cdf28c]   ; abs 0x64cdf28c (RVA 0xdf28c)
+  0x027a1a: d95d98               fstp dword ptr [ebp - 0x68]
+  0x027a1d: d87598               fdiv dword ptr [ebp - 0x68]
+  0x027a20: d95d98               fstp dword ptr [ebp - 0x68]
+  0x027a23: d94598               fld dword ptr [ebp - 0x68]
+  0x027a26: 895598               mov dword ptr [ebp - 0x68], edx
+  0x027a29: df6d98               fild qword ptr [ebp - 0x68]
+  0x027a2c: c7459c00000000       mov dword ptr [ebp - 0x64], 0
+  0x027a33: d95d98               fstp dword ptr [ebp - 0x68]
+  0x027a36: d94598               fld dword ptr [ebp - 0x68]
+  0x027a39: 894598               mov dword ptr [ebp - 0x68], eax
+  0x027a3c: df6d98               fild qword ptr [ebp - 0x68]
+  0x027a3f: d95d98               fstp dword ptr [ebp - 0x68]
+  0x027a42: d94598               fld dword ptr [ebp - 0x68]
+  0x027a45: d9c0                 fld st(0)
+  0x027a47: d9c2                 fld st(2)
+  0x027a49: d9c4                 fld st(4)
+  0x027a4b: d9cb                 fxch st(3)
+  0x027a4d: d8f4                 fdiv st(4)
+  0x027a4f: d95d98               fstp dword ptr [ebp - 0x68]
+  0x027a52: d94598               fld dword ptr [ebp - 0x68]
+  0x027a55: d9057019ce64         fld dword ptr [0x64ce1970]   ; abs 0x64ce1970 (RVA 0xe1970)
+  0x027a5b: d9ce                 fxch st(6)
+  0x027a5d: dff6                 fcompi st(6)
+  0x027a5f: 0f87a3000000         ja 0x64c27b08
+  0x027a65: dddc                 fstp st(4)
+  0x027a67: d9c9                 fxch st(1)
+  0x027a69: d9ca                 fxch st(2)
+  0x027a6b: d9cb                 fxch st(3)
+  0x027a6d: d9ca                 fxch st(2)
+  0x027a6f: d97da2               fnstcw word ptr [ebp - 0x5e]
+  0x027a72: decb                 fmulp st(3)
+  0x027a74: d9cb                 fxch st(3)
+  0x027a76: 89c1                 mov ecx, eax
+  0x027a78: 31d2                 xor edx, edx
+  0x027a7a: 0fb745a2             movzx eax, word ptr [ebp - 0x5e]
+  0x027a7e: dec9                 fmulp st(1)
+  0x027a80: 80cc0c               or ah, 0xc
+  0x027a83: 668945a0             mov word ptr [ebp - 0x60], ax
+  0x027a87: def9                 fdivp st(1)
+  0x027a89: d95d98               fstp dword ptr [ebp - 0x68]
+  0x027a8c: d94598               fld dword ptr [ebp - 0x68]
+  0x027a8f: dce9                 fsub st(1), st(0)
+  0x027a91: d9c9                 fxch st(1)
+  0x027a93: d80d7419ce64         fmul dword ptr [0x64ce1974]   ; abs 0x64ce1974 (RVA 0xe1974)
+  0x027a99: d95d98               fstp dword ptr [ebp - 0x68]
+  0x027a9c: d94598               fld dword ptr [ebp - 0x68]
+  0x027a9f: d96da0               fldcw word ptr [ebp - 0x60]
+  0x027aa2: db5d98               fistp dword ptr [ebp - 0x68]
+  0x027aa5: d96da2               fldcw word ptr [ebp - 0x5e]
+  0x027aa8: db4598               fild dword ptr [ebp - 0x68]
+  0x027aab: 8b4598               mov eax, dword ptr [ebp - 0x68]
+  0x027aae: dec1                 faddp st(1)
+  0x027ab0: d96da0               fldcw word ptr [ebp - 0x60]
+  0x027ab3: db5d98               fistp dword ptr [ebp - 0x68]
+  0x027ab6: d96da2               fldcw word ptr [ebp - 0x5e]
+  0x027ab9: 8b7d98               mov edi, dword ptr [ebp - 0x68]
+  0x027abc: 8955a8               mov dword ptr [ebp - 0x58], edx
+  0x027abf: 8b15ecf2cd64         mov edx, dword ptr [0x64cdf2ec]   ; abs 0x64cdf2ec (RVA 0xdf2ec)
+  0x027ac5: 8945ac               mov dword ptr [ebp - 0x54], eax
+  0x027ac8: 8b03                 mov eax, dword ptr [ebx]
+  0x027aca: 894db0               mov dword ptr [ebp - 0x50], ecx
+  0x027acd: 897db4               mov dword ptr [ebp - 0x4c], edi
+  0x027ad0: 89542414             mov dword ptr [esp + 0x14], edx
+  0x027ad4: 8d55a8               lea edx, [ebp - 0x58]
+  0x027ad7: 89542410             mov dword ptr [esp + 0x10], edx
+  0x027adb: e90afeffff           jmp 0x64c278ea
+  0x027ae0: c704248cf2cd64       mov dword ptr [esp], 0x64cdf28c
+  0x027ae7: b980f2cd64           mov ecx, 0x64cdf280
+  0x027aec: e82fe70000           call 0x64c36220
+
 --- reset helper (RVA 0x36220, VA 0x64c36220) ---
   0x036220: 83ec2c               sub esp, 0x2c
   0x036223: 8b4144               mov eax, dword ptr [ecx + 0x44]
@@ -218,6 +330,12 @@ image base: 0x64c00000  PE timestamp: 0x6a04fec7
   0x0cf4ed: 90                   nop 
   0x0cf4ee: 90                   nop 
   0x0cf4ef: 90                   nop 
+
+--- conversion blit (RVA 0x27868, VA 0x64c27868) ---
+  0x027868: ff9088000000         call dword ptr [eax + 0x88]
+  0x02786e: 8b03                 mov eax, dword ptr [ebx]
+  0x027870: 83ec18               sub esp, 0x18
+  0x027873: 891c24               mov dword ptr [esp], ebx
 
 === indirect call check ===
   final StretchRect  RVA 0x27900: call dword ptr [eax + 0x88]

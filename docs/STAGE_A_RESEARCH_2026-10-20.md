@@ -10,6 +10,10 @@ hash-pinned binaries listed below, plus source review of EfzModManager (binary
 analysis), InGameNetplay, and vendored SokuDisplayManager.
 **Status:** all anchors PASS in both J packages. Several facts beyond the
 feasibility doc were established and are marked **[NEW]**.
+**Second pass (same day):** the four open questions of the first pass are now
+resolved — see section 10. The globals interpretation in section 3 was refined:
+the state block at `0xDF280` is a thiscall renderer object with the
+`D3DPRESENT_PARAMETERS` embedded at `+0x0C`.
 
 ## 1. Verified binaries
 
@@ -66,8 +70,9 @@ The full final-frame sequence inside Flip at `0x27860`:
      `0x2799E`–`0x279A6`.
    - **Borderless (`0x27A20`):** `MonitorFromWindow(hwnd=[0xDF2CC])` +
      `GetMonitorInfoW` **[NEW: IAT 0x13C744/0x13C724 identified]**, `GetDisplayMode`
-     (`vtable+0x20`), then x87 aspect math reading `0xDF28C` backbuffer dims and
-     global `0xDF290`, with explicit rounding-control save/set/restore
+     (`vtable+0x20`), then x87 aspect math reading the presentation parameters'
+     first two dwords (`0xDF28C` = BackBufferWidth, `0xDF290` =
+     BackBufferHeight), with explicit rounding-control save/set/restore
      (`fnstcw`/`fldcw`, RC=round-to-nearest) **[NEW]**; writes a RECT to
      `[ebp-0x58..-0x4C]`, sets `dstRect=&rect`, `filter=[0xDF2EC]`, then
      **`jmp 0x279AA`**.
@@ -83,11 +88,33 @@ global. This is the wrapper's own scaling-filter setting. A display module must
 not assume the final blit's filter is a constant, and at hook time the effective
 stack argument (`[esp+0x14]` at the call site) is the authoritative value.
 
-**Other globals mapped [NEW]:** `0xDF280` = static C++ renderer object (its `+0`
-field is the conversion/staging surface used as conversion-blit source; methods
-at `0x35630`/`0x36510` render overlays, `0x359E0` queries the output mode);
-`0xDF2CC` = HWND used for `MonitorFromWindow`; `0xDF290` = value used in the
-aspect computation; `0xDF4A0` = timer object returned by `getEfzTimer`.
+**Renderer object layout [NEW, refined in pass 2]:** the whole globals cluster
+is one static thiscall object at `0xDF280` — every wrapper method takes
+`ecx = 0x64CDF280`:
+
+| Offset | Global | Meaning |
+|---|---|---|
+| `+0x00` | `0xDF280` | conversion/staging surface (`IDirect3DSurface9*`) |
+| `+0x04` | `0xDF284` | native 640x480 target surface |
+| `+0x0C` | `0xDF28C` | `D3DPRESENT_PARAMETERS` (0x38 bytes, spans to `0xDF2C3`) |
+| `+0x44` | `0xDF2C4` | `IDirect3DDevice9*` |
+| `+0x4C` | `0xDF2CC` | HWND (monitor/window queries) |
+| `+0x58` | `0xDF2D8` | device type used at `CreateDevice` (1 = HAL) |
+| `+0x6C` | `0xDF2EC` | `D3DTEXTUREFILTERTYPE` for both blits (see section 10, Q1) |
+| `+0x70` | `0xDF2F0` | init-failure byte |
+| `+0x71` | `0xDF2F1` | borderless flag byte (inverted by the toggle) |
+| `+0x74` | `0xDF2F4` | D3DX font object (`D3DXCreateFontW`, d3dx9_43.dll) |
+| `+0x78` | `0xDF2F8` | text-rendering enabled byte |
+
+Known methods (thiscall, `this = 0x64CDF280`): `0x35630` render text,
+`0x36510` render boxes/lines, `0x359E0` output-mode query, `0x361C0`
+fullscreen toggle, `0x363D0` reset helper, `0x354F0` destructor. The text
+method calls `SetRenderTarget(0, native)` / `GetRenderTarget` around its draw
+(vtable `+0x94`/`+0x98`). `CreateDevice` is called with
+`BehaviorFlags = 0x22` = `D3DCREATE_FPU_PRESERVE |
+D3DCREATE_SOFTWARE_VERTEXPROCESSING` — the wrapper already preserves the FPU.
+The wrapper depends on **d3dx9_43.dll** (`D3DXCreateFontW`, `D3DXCreateLine`).
+`getEfzTimer` returns the timer object at RVA `0xDF4A0`.
 
 **Hook-site geometry [NEW]:** at `0x279C0` every input is on the stack:
 `[esp]=device(this)`, `[esp+4]=native source surface`, `[esp+8]=srcRect(NULL)`,
@@ -104,15 +131,26 @@ rectangle — that is the Stage A observation point and later the adaptation poi
 1. `TestCooperativeLevel` on the device stored at wrapper-object `+0x44`; if the
    result is neither `D3DERR_DEVICENOTRESET` (`0x88760869`) nor `D3D_OK`, return
    early (device lost — no reset attempted).
-2. `Release()` the surfaces at wrapper-object `+0x00` and `+0x04`.
-3. Call `vtable+0x40` (Reset) on the object at `+0x74` (secondary device-like
-   object; argument setup not visible at that call site).
+2. `Release()` the surfaces at wrapper-object `+0x00` and `+0x04` (staging and
+   native).
+3. Call `vtable+0x40` on the object at `+0x74` — resolved in pass 2 as the
+   **D3DX font's `OnLostDevice`** (the wrapper imports `D3DXCreateFontW` /
+   `D3DXCreateLine` from d3dx9_43.dll; `+0x74` is the font object guarding all
+   text drawing, with the enable byte at `+0x78`). The post-Reset call at
+   `+0x44` is the matching **`OnResetDevice`** — so the helper follows the
+   canonical D3DX loss/reset sequence and is more correct than the feasibility
+   report implied; only the Reset HRESULT is still discarded.
 4. **The real device Reset at `0x36441`** using the incoming presentation
-   parameters; the HRESULT is not tested — flow proceeds directly to further
-   calls (`+0x74` object again, then font/target recreation). This confirms the
-   feasibility warning: gating recovery on this helper's return value is wrong;
-   a Stage A adapter must capture the HRESULT at `0x36441` itself (or verify
-   surface recreation afterward).
+   parameters; the HRESULT is not tested — flow proceeds directly to the font's
+   `OnResetDevice` and further recreation. This confirms the feasibility
+   warning: gating recovery on this helper's return value is wrong; a Stage A
+   adapter must capture the HRESULT at `0x36441` itself (or verify surface
+   recreation afterward).
+5. The helper has exactly one caller: the reset block at `0x27BA0` inside
+   Flip's borderless path (`this = 0x64CDF280`, arg = `&PP`), which then
+   returns `DD_OK` from Flip **without presenting that frame**; the next Flip
+   presents in the new mode. Reaching this block is how the fullscreen toggle
+   applies a mode change (see section 10, Q3).
 
 ## 5. Wrapper ABI direction (why the wrapper cannot be replaced)
 
@@ -272,17 +310,110 @@ entirely from the EFZ build.
    float work in the hook).
 6. **No WndProc, no EXE patches, no second timer/limiter/input.**
 
-## 10. Open questions (not blocking Stage A start)
+## 10. Open questions — resolved (second pass, 2026-10-20)
 
-- What writes `0xDF2EC` (the wrapper's filter global) and what values does it
-  take at runtime — does the wrapper expose a filter setting through its own
-  config/UI? (If a supported path exists, Point/Linear might be reachable
-  without touching the blit — but aspect/integer scaling still needs the hook.)
-- Identity/role of the wrapper object at `+0x74` in the reset helper (secondary
-  device?) and of global `0xDF290`; harmless unknowns for Stage A, worth
-  resolving before Reset-stage work.
-- Whether the game ever presents through a path other than Flip (window
-  resize/minimize) — runtime observation will answer this.
-- Original-J profile: same anchors verified statically, but its borderless
-  branch target (`0x27A20` equivalent at ~`0x279D4`?) has not been traced to the
-  same convergence; verify before enabling that profile.
+All four first-pass questions were closed by further static analysis
+(`tools/scan_refs.py` cross-references, byte-pattern scans, and targeted
+disassembly of the same hash-pinned binaries).
+
+### Q1 — Filter global `0xDF2EC` (struct `+0x6C`): internal, no config path
+
+- Exactly two writers, both in the renderer-init method at `0x26C50`
+  (thiscall, reached from the init function at `0x26DC0` during surface/desc
+  processing): `0x26C91: mov [0xDF2EC], 0` (`D3DTEXF_NONE`) written first, and
+  `0x26D90: mov [0xDF2EC], 2` (`D3DTEXF_LINEAR`) reached when
+  `(flags & 0x02000200) == 0x02000200`, where `flags` is the method's
+  third argument (a caps/flags dword; `0x200` matches
+  `DDSCAPS_PRIMARYSURFACE`). Initial `.data` value is 0.
+- **No external control exists**: the wrapper's only file I/O string is its
+  `logDdraw.txt` log (plus an embedded edition check string, "Only use
+  DDRAW.dll with EFZ -Memorial- edition, version 4.02"). No INI, no export,
+  no UI sets the filter. Point/Linear behavior cannot be changed through any
+  supported wrapper path — the blit-site hook remains the only lever, and it
+  must read the effective filter from the stack argument at runtime rather
+  than assume NONE or LINEAR.
+
+### Q2 — Reset helper `+0x74` object and `0xDF290`: D3DX font; PP dword
+
+- `+0x74` (`0xDF2F4`) is the wrapper's **D3DX font object**, created via
+  `D3DXCreateFontW` (imports also include `D3DXCreateLine`; d3dx9_43.dll).
+  It guards all text drawing (`+0x78` enable byte); the text method
+  (`0x35630`) switches the render target to the native surface around the
+  draw. The reset helper's two `+0x74` vtable calls are the font's
+  `OnLostDevice` (before Reset) and `OnResetDevice` (after) — the canonical
+  D3DX sequence, folded into section 4 above.
+- `0xDF290` is the **second dword of the `D3DPRESENT_PARAMETERS` embedded at
+  `0xDF28C`** (standard layout: BackBufferWidth at `0xDF28C`, BackBufferHeight
+  at `0xDF290`; the struct spans `0x38` bytes to `0xDF2C3`, with the device
+  pointer immediately after at `0xDF2C4`). The borderless aspect math reads
+  exactly these two dwords. The full object-field map is in section 3.
+- Bonus: `CreateDevice` uses `BehaviorFlags = 0x22`
+  (`FPU_PRESERVE | SOFTWARE_VERTEXPROCESSING`), and the init function's
+  error path sets byte `0xDF2F0` and logs.
+
+### Q3 — Present paths: Flip only; Blt is a stub; toggle defers to next Flip
+
+- The emulated `IDirectDrawSurface7` vtable lives at `.rdata 0xF9128` with
+  **Flip at slot 11** (`+0x2C`) exactly per the ddraw.h layout. **Blt (slot 5,
+  `0x27850`) and BltFast (slot 7) are unimplemented stubs**
+  (`xor eax,eax; ret`) — there is provably no present path other than
+  Flip → shared final `StretchRect` → `Present`, plus the reset block
+  (below) which skips that frame's present.
+- **Fullscreen toggle** (`EfzRender_toggleFullScreen` export at `0x23400`
+  → method `0x361C0`): inverts the borderless byte at `+0x71` (`0xDF2F1`),
+  rewrites the window style (`GetWindowLongA(GWL_STYLE)` → strip
+  `WS_CAPTION|WS_THICKFRAME`-family bits / OR the borderless style →
+  `SetWindowLongA`, then a `SWP_FRAMECHANGED`-style `SetWindowPos`). It does
+  **not** reset or present directly — the reset happens on the next Flip via
+  the `0x27BA0` block calling the reset helper, and that Flip returns `DD_OK`
+  without presenting.
+- **The wrapper owns the render window**: class `"ETERNAL FIGHTER ZERO"`
+  (string at RVA `0xDF190`), created at `0x28957` (`CreateWindowExA`),
+  registered at `0x28890` with WndProc **`0x24910`**. The WndProc:
+  - `WM_KEYDOWN/WM_SYSKEYDOWN` + `wParam == VK_RETURN` + `lParam & 0x20000000`
+    (Alt context) → calls the same toggle method `0x361C0` — **Alt+Enter is
+    implemented by the wrapper**, not the game.
+  - `WM_SIZE` → logs (`logDdraw.txt`) and forwards; no resize/reset logic,
+    confirming the feasibility claim.
+  - One private message `0x2000` is swallowed (returns 0).
+  - Everything else **tail-jumps to absolute VA `0x401670` inside efz.exe** —
+    a hardcoded game-address dependency (assumes the exe at base `0x400000`).
+    Co-loaded mods (including our module) must not break this forwarding, and
+    InGameNetplay's window hooks operate on this wrapper-owned window.
+- Residual runtime-only checks (non-blocking): whether the game actually calls
+  Blt/BltFast (harmless no-ops if it does), and the meaning of private
+  message `0x2000`. The Stage A observation hook will log Flip activity and
+  can confirm no other present traffic exists.
+
+### Q4 — Original-J convergence: identical, at shifted RVAs
+
+Traced end-to-end in the original-J binary (evidence:
+`docs/evidence/ddraw-orig-j.txt`):
+
+| Role | Original J | Renderer-split J |
+|---|---:|---:|
+| Conversion helper | `0x27640` | `0x27700` |
+| Conversion blit | `0x27868` | `0x27928` |
+| Mode-query method | `0x357A0` | `0x359E0` |
+| Borderless branch | `0x27960` | `0x27A20` |
+| Convergence `jmp` | `0x27ADB → 0x278EA` | `0x27B9B → 0x279AA` |
+| Final StretchRect | `0x27900` | `0x279C0` |
+| Present | `0x2793C` | `0x279FC` |
+| Reset block | `0x27AE0` (helper `0x36220`) | `0x27BA0` (helper `0x363D0`) |
+
+Same structure in both: the borderless branch computes the letterbox rect
+(reading PP dims at `0xDF28C`/`0xDF290`), sets `dstRect`/`filter` from the
+same globals, jumps into the shared argument setup, and hits the single final
+`StretchRect`. Both use filter global `0xDF2EC`. **The port design holds
+unchanged for both profiles**; only the RVA table differs. The profiles in
+`tools/verify_anchors.py` now encode all of these anchors and PASS on both
+binaries.
+
+## 11. Residual runtime unknowns (accepted for Stage A start)
+
+- Actual runtime values of the filter global and PP dims (the observation hook
+  logs them per frame).
+- Whether the game ever calls the stubbed Blt/BltFast, and what message
+  `0x2000` is used for.
+- The original-J package's exe (`194710a1…`) is not covered by the feasibility
+  hash table; hash-pin it separately if that profile is ever admitted.

@@ -203,6 +203,46 @@ image base: 0x64c00000  PE timestamp: 0x6a6f1795
   0x027b29: d9ca                 fxch st(2)
   0x027b2b: d9cb                 fxch st(3)
   0x027b2d: d9ca                 fxch st(2)
+  0x027b2f: d97da2               fnstcw word ptr [ebp - 0x5e]
+  0x027b32: decb                 fmulp st(3)
+  0x027b34: d9cb                 fxch st(3)
+  0x027b36: 89c1                 mov ecx, eax
+  0x027b38: 31d2                 xor edx, edx
+  0x027b3a: 0fb745a2             movzx eax, word ptr [ebp - 0x5e]
+  0x027b3e: dec9                 fmulp st(1)
+  0x027b40: 80cc0c               or ah, 0xc
+  0x027b43: 668945a0             mov word ptr [ebp - 0x60], ax
+  0x027b47: def9                 fdivp st(1)
+  0x027b49: d95d98               fstp dword ptr [ebp - 0x68]
+  0x027b4c: d94598               fld dword ptr [ebp - 0x68]
+  0x027b4f: dce9                 fsub st(1), st(0)
+  0x027b51: d9c9                 fxch st(1)
+  0x027b53: d80d8419ce64         fmul dword ptr [0x64ce1984]   ; abs 0x64ce1984 (RVA 0xe1984)
+  0x027b59: d95d98               fstp dword ptr [ebp - 0x68]
+  0x027b5c: d94598               fld dword ptr [ebp - 0x68]
+  0x027b5f: d96da0               fldcw word ptr [ebp - 0x60]
+  0x027b62: db5d98               fistp dword ptr [ebp - 0x68]
+  0x027b65: d96da2               fldcw word ptr [ebp - 0x5e]
+  0x027b68: db4598               fild dword ptr [ebp - 0x68]
+  0x027b6b: 8b4598               mov eax, dword ptr [ebp - 0x68]
+  0x027b6e: dec1                 faddp st(1)
+  0x027b70: d96da0               fldcw word ptr [ebp - 0x60]
+  0x027b73: db5d98               fistp dword ptr [ebp - 0x68]
+  0x027b76: d96da2               fldcw word ptr [ebp - 0x5e]
+  0x027b79: 8b7d98               mov edi, dword ptr [ebp - 0x68]
+  0x027b7c: 8955a8               mov dword ptr [ebp - 0x58], edx
+  0x027b7f: 8b15ecf2cd64         mov edx, dword ptr [0x64cdf2ec]   ; abs 0x64cdf2ec (RVA 0xdf2ec)
+  0x027b85: 8945ac               mov dword ptr [ebp - 0x54], eax
+  0x027b88: 8b03                 mov eax, dword ptr [ebx]
+  0x027b8a: 894db0               mov dword ptr [ebp - 0x50], ecx
+  0x027b8d: 897db4               mov dword ptr [ebp - 0x4c], edi
+  0x027b90: 89542414             mov dword ptr [esp + 0x14], edx
+  0x027b94: 8d55a8               lea edx, [ebp - 0x58]
+  0x027b97: 89542410             mov dword ptr [esp + 0x10], edx
+  0x027b9b: e90afeffff           jmp 0x64c279aa
+  0x027ba0: c704248cf2cd64       mov dword ptr [esp], 0x64cdf28c
+  0x027ba7: b980f2cd64           mov ecx, 0x64cdf280
+  0x027bac: e81fe80000           call 0x64c363d0
 
 --- reset helper (RVA 0x363d0, VA 0x64c363d0) ---
   0x0363d0: 83ec2c               sub esp, 0x2c
@@ -279,6 +319,12 @@ image base: 0x64c00000  PE timestamp: 0x6a6f1795
   0x0cf79d: 90                   nop 
   0x0cf79e: 90                   nop 
   0x0cf79f: 90                   nop 
+
+--- conversion blit (RVA 0x27928, VA 0x64c27928) ---
+  0x027928: ff9088000000         call dword ptr [eax + 0x88]
+  0x02792e: 8b03                 mov eax, dword ptr [ebx]
+  0x027930: 83ec18               sub esp, 0x18
+  0x027933: 891c24               mov dword ptr [esp], ebx
 
 === indirect call check ===
   final StretchRect  RVA 0x279c0: call dword ptr [eax + 0x88]

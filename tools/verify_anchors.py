@@ -44,12 +44,13 @@ PROFILES = {
         "native_global": 0xDF284,
         "device_global": 0xDF2C4,
         "pp_global": 0xDF28C,
-        "conv_blit": None,
+        "conv_blit": 0x27868,
         "final_stretch": 0x27900,
         "present": 0x2793C,
         "reset_helper": 0x36220,
         "device_reset": 0x36291,
         "timer_export": 0xCF4E0,
+        "branch_target": 0x27960,
     },
 }
 
@@ -135,9 +136,11 @@ def check(profile, pe, data):
     disasm(pe, data, profile["final_stretch"], 8, "final StretchRect call")
     disasm(pe, data, profile["present"], 4, "device Present call")
     if profile.get("branch_target"):
-        disasm(pe, data, profile["branch_target"], 70, "geometry branch target")
+        disasm(pe, data, profile["branch_target"], 110, "geometry branch target")
     disasm(pe, data, profile["reset_helper"], 60, "reset helper")
     disasm(pe, data, profile["timer_export"], 12, "getEfzTimer export")
+    if profile.get("conv_blit"):
+        disasm(pe, data, profile["conv_blit"], 4, "conversion blit")
 
     # Vtable-offset summary for the indirect calls at the three call sites.
     print("\n=== indirect call check ===")
