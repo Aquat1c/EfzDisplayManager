@@ -32,6 +32,12 @@ void setAdaptConfig(ScaleMode mode, int integerScale, int customWidth,
 // Window-resize support: arms the Flip-entry resize evaluation.
 void setResizeConfig(bool enabled);
 
+// Exclusive fullscreen support: arms the F11 toggle, the VSync choice
+// (-1 keep, 0 immediate, 1 vsync) applied at every reset we perform, and
+// optionally requests entering exclusive at startup.
+void setFullscreenConfig(bool enabled, bool hotkey, long vsync,
+                         bool requestEnter);
+
 // Trampoline storage for the Flip-entry detour (filled by
 // installEntryDetour before the entry site is patched).
 unsigned char* entryTrampolineBuffer();

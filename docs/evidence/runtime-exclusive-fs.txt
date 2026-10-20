@@ -1,0 +1,29 @@
+[19:14:49.041] EFZ DisplayManager v0.4.0 (window-resize): attached, deferring to bootstrap worker
+[19:14:49.045] admission: DDRAW.dll loaded at 71a90000 (D:\EFZ_FULLPACK\DDRAW.dll)
+[19:14:49.051] admission: file SHA-256: 0e072342d87d240e18969bc3663032e0e370eaba24d1fbb8e6c1f6216ad9f603
+[19:14:49.051] admission: profile accepted: renderer-split Revival 1.02j (2026-08-02) (PE timestamp 6a6f1795)
+[19:14:49.302] bootstrap: wrapper device 08a492e0, native surface 08aa7940
+[19:14:49.538] window: style 14ca0000 -> 14cf0000 (maximize enabled + drag-resize (pauses game during drag), client preserved)
+[19:14:49.571] detour: installed 6-byte hook at 71ab79c0 (target 737129d0)
+[19:14:49.571] fullscreen: exclusive requested at startup (F11 toggles)
+[19:14:49.575] surfaces: native 640x480, backbuffer 1280x960 (src 08aa7940 dst 08aa7ee0)
+[19:14:49.575] flip #1: dstRect=NULL(full) filter=2 pp=1280x960 borderless=0 <changed>
+[19:14:49.575] adapt: -> (0,0,1280,960) 1280x960 filter=2 (was 2)
+[19:14:49.592] flip #2: dstRect=NULL(full) filter=2 pp=1280x960 borderless=0
+[19:14:49.592] adapt: -> (0,0,1280,960) 1280x960 filter=2 (was 2)
+[19:14:49.602] detour: installed 7-byte entry hook at 71ab7860 (trampoline 73716010)
+[19:14:49.602] bootstrap: hook active (observe + adapt: mode=0 scale=0 custom=640x480 filter=0 bg=000000)
+[19:14:49.608] fullscreen: entering exclusive 2560x1440@240hz
+[19:14:49.676] fullscreen-enter: surface recreation staging=1 native=1
+[19:14:49.677] surfaces: native 640x480, backbuffer 2560x1440 (src 1020fe40 dst 10210200)
+[19:14:49.677] flip #3: dstRect=NULL(full) filter=2 pp=2560x1440 borderless=0 <changed>
+[19:14:49.677] flip #3: native/device pointer changed (post-reset recreation)
+[19:14:49.677] adapt: -> (320,0,2240,1440) 1920x1440 filter=2 (was 2)
+[19:14:49.683] flip #4: dstRect=NULL(full) filter=2 pp=2560x1440 borderless=0
+[19:14:49.683] adapt: -> (320,0,2240,1440) 1920x1440 filter=2 (was 2)
+[19:14:49.686] flip #5: dstRect=NULL(full) filter=2 pp=2560x1440 borderless=0
+[19:14:49.686] adapt: -> (320,0,2240,1440) 1920x1440 filter=2 (was 2)
+[19:14:49.701] flip #6: dstRect=NULL(full) filter=2 pp=2560x1440 borderless=0
+[19:14:49.701] adapt: -> (320,0,2240,1440) 1920x1440 filter=2 (was 2)
+[19:14:59.216] flip #600: dstRect=NULL(full) filter=2 pp=2560x1440 borderless=0
+[19:14:59.216] adapt: -> (320,0,2240,1440) 1920x1440 filter=2 (was 2)

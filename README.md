@@ -40,6 +40,28 @@ build-xp\Release\dm_sha256_test.exe   # self-tests: SHA vectors, file pins, form
 
 Output: `build-xp/Release/DisplayManager.dll` (PE32, OS 5.01).
 
+## DisplayManager.ini
+
+| Key | Default | Meaning |
+|---|---|---|
+| `Enabled` | 1 | 0 leaves the game completely untouched |
+| `Mode` | FitToScreen | `FitToScreen` / `IntegerScaling` / `CustomResolution` |
+| `IntegerScale` | 0 | integer multiple; 0 = largest that fits |
+| `CustomWidth/Height` | 640/480 | CustomResolution output size |
+| `Filter` | Linear | `Linear` (wrapper's) / `Point` |
+| `BackgroundColor` | 000000 | letterbox border color (RRGGBB) |
+| `Fullscreen` | 0 | start in exclusive fullscreen (desktop mode) |
+| `FullscreenHotkey` | 1 | F11 toggles exclusive fullscreen |
+| `VSync` | -1 | -1 keep wrapper interval / 0 immediate / 1 vsync |
+| `WindowAdjustStyle` | 1 | enable maximize box on the fixed-size window |
+| `WindowDragResize` | 1 | sizing border; drag pauses the game while held |
+| `ResizeBackBuffer` | 1 | backbuffer follows maximize/restore/resize |
+
+Notes: exclusive fullscreen and backbuffer resize disable themselves for the
+session while `efz_training_mode.dll` / `efz_netplay_mod.dll` (or any mod
+holding D3D9 default-pool resources) is loaded - `Reset` is impossible then;
+make those mods reset-aware to enable both alongside them.
+
 ## Install
 
 Via [EfzModManager](https://github.com/fishshapedfish/EfzModManager): place the

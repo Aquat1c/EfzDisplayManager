@@ -433,7 +433,29 @@ The v0.2.0 `stage-a-observe` module ran inside the game on 2026-10-20
   runtime geometry (dstRect letterbox values). The observation hook logs all
   of these automatically when they occur.
 
-## 12. Stage A implementation record (v0.2.0 → v0.4.x, 2026-10-20)
+## 12. Stage A implementation record (v0.2.0 → v0.5.0, 2026-10-20)
+
+**v0.5.0 `exclusive-fullscreen` (ported with the creator's permission):**
+exclusive fullscreen at the window monitor's desktop mode (no display-mode
+change), driven entirely from the Flip-entry hook - F11 edge-detected via
+`GetAsyncKeyState` (no WndProc; the InGameNetplay window-hook contract stays
+intact), `Fullscreen=1` INI starts exclusive, `VSync` (-1/0/1) overrides the
+presentation interval at every reset we perform. Presentation-parameter
+manipulation is pure and unit-tested (`fullscreen.cpp`: enter-exclusive
+fields, windowed snapshot/restore round-trip, vsync choices; 41 tests total).
+Live-verified: F11 enter at 2560x1440@240Hz with surface recreation 1/1 and
+the correct 4:3 letterbox; a real focus-loss DEVICELOST storm (~2.6 s, 597
+lost frames) ridden out with one clean DEVICENOTRESET recovery back into
+exclusive; `Fullscreen=1` startup enter. Evidence:
+[evidence/runtime-exclusive-fs.txt](evidence/runtime-exclusive-fs.txt).
+The exit path is the same reset machinery in reverse (snapshot-restored
+windowed parameters, rollback on failure); SendKeys automation could not
+reliably deliver the second F11 (focus fighting), so exit is verified by
+construction + startup-enter symmetry - confirm F11 exit by hand.
+Device-resource mods (training/netplay) gate exclusive off for the session,
+same as resize. The DEVICELOST/NOTRESET announcements are one-shot.
+
+The sections below describe earlier versions as implemented at the time.
 
 **v0.4.x coexistence hardening (same day):** live testing with a
 resource-holding probe mod (a D3D9 DEFAULT-pool texture, standing in for the

@@ -4,13 +4,13 @@
 #define DM_VERSION_MINOR 3
 #define DM_VERSION_PATCH 0
 
-#define DM_VERSION_STRING "0.4.0"
+#define DM_VERSION_STRING "0.5.0"
 
-// Development stage marker. "window-resize": the final-blit hook now applies
+// Development stage marker. "exclusive-fullscreen": the final-blit hook now applies
 // configured output geometry (aspect-fit / integer / custom, centered),
 // an optional Point-filter override, and border fill; source, backbuffer,
 // and presentation remain the wrapper's.
-#define DM_STAGE_STRING "window-resize"
+#define DM_STAGE_STRING "exclusive-fullscreen"
 
 namespace dm {
 

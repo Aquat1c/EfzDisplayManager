@@ -42,6 +42,9 @@ Config loadConfig(HMODULE module) {
     c.customHeight = 480;
     c.filter = 0;                  // 0 = keep the wrapper's filter
     c.backgroundColor = 0xFF000000UL;
+    c.fullscreen = 0;
+    c.fullscreenHotkey = 1;
+    c.vsync = -1;
     c.resizeBackBuffer = 1;
     c.windowAdjustStyle = 1;
     c.windowDragResize = 1;
@@ -86,6 +89,11 @@ Config loadConfig(HMODULE module) {
         c.filter = 1;  // D3DTEXF_POINT
     }
 
+    c.fullscreen =
+        GetPrivateProfileIntA("Display", "Fullscreen", c.fullscreen, ini);
+    c.fullscreenHotkey = GetPrivateProfileIntA("Display", "FullscreenHotkey",
+                                               c.fullscreenHotkey, ini);
+    c.vsync = GetPrivateProfileIntA("Display", "VSync", int(c.vsync), ini);
     c.resizeBackBuffer =
         GetPrivateProfileIntA("Display", "ResizeBackBuffer", c.resizeBackBuffer, ini);
     c.windowAdjustStyle =

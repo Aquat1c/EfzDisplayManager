@@ -4,6 +4,7 @@
 #include <d3d9.h>
 
 #include "format.h"
+#include "fullscreen.h"
 #include "geometry.h"
 #include "logging.h"
 #include "resize.h"
@@ -103,6 +104,128 @@ void storeSurface(unsigned char* base, uint32_t rva, void* p) {
     *reinterpret_cast<void**>(base + rva) = p;
 }
 
+// ---- Exclusive fullscreen state (driven from Flip entry; no WndProc) ----
+bool g_fsEnabled = false;       // feature armed (config + no blocking mods)
+bool g_fsHotkey = true;         // F11 toggle armed
+long g_fsVSync = -1;            // -1 keep wrapper interval, 0 immediate, 1 one
+bool g_fsExclusive = false;     // currently in exclusive fullscreen
+bool g_fsPending = false;       // enter/exit request queued
+bool g_fsKeyWasDown = false;    // F11 edge detection
+unsigned char g_fsSavedPp[kPp_Size];
+
+// Full font-safe reset to whatever parameters currently sit at ppRva.
+// fallbackPp (may be null): parameter block restored into ppRva when the
+// Reset fails, so the caller's rollback leaves the device consistent.
+// Returns true when the reset and surface recreation succeeded. On failure
+// the surfaces are recreated from their captured descriptions regardless,
+// so the wrapper never runs on dangling pointers.
+bool resetSequence(unsigned char* fallbackPp, const char* reason) {
+    IDirect3DDevice9* dev = *reinterpret_cast<IDirect3DDevice9**>(
+        g_obs.base + g_obs.profile->deviceRva);
+    void* font =
+        *reinterpret_cast<void**>(g_obs.base + g_obs.profile->fontRva);
+    IDirect3DSurface9* staging = *reinterpret_cast<IDirect3DSurface9**>(
+        g_obs.base + g_obs.profile->rendererObjectRva);
+    IDirect3DSurface9* native = *reinterpret_cast<IDirect3DSurface9**>(
+        g_obs.base + g_obs.profile->nativeSurfaceRva);
+    if (!dev || !staging || !native) {
+        DM_LOG("%s: device/surfaces missing; aborted", reason);
+        return false;
+    }
+    D3DSURFACE_DESC dS = {}, dN = {};
+    if (FAILED(staging->GetDesc(&dS)) || FAILED(native->GetDesc(&dN))) {
+        DM_LOG("%s: GetDesc failed; aborted", reason);
+        return false;
+    }
+    void*** fontVt = reinterpret_cast<void***>(font);
+    Recreator recreator{dev};
+    if (font && fontVt) {
+        reinterpret_cast<VtMethodFn>(fontVt[0][kFontOnLostDevice])(font);
+    }
+    staging->Release();
+    native->Release();
+    storeSurface(g_obs.base, g_obs.profile->rendererObjectRva, nullptr);
+    storeSurface(g_obs.base, g_obs.profile->nativeSurfaceRva, nullptr);
+
+    unsigned char* pp = g_obs.base + g_obs.profile->ppRva;
+    HRESULT hr = dev->Reset(reinterpret_cast<D3DPRESENT_PARAMETERS*>(pp));
+    const bool ok = SUCCEEDED(hr);
+    if (!ok) {
+        DM_LOG("%s: Reset hr=%08lx - rolling back", reason, long(hr));
+        if (fallbackPp) memcpy(pp, fallbackPp, kPp_Size);
+    }
+    void* s = recreator.recreate(dS);
+    void* n = recreator.recreate(dN);
+    DM_LOG("%s: surface recreation staging=%d native=%d", reason, s ? 1 : 0,
+           n ? 1 : 0);
+    if (s) storeSurface(g_obs.base, g_obs.profile->rendererObjectRva, s);
+    if (n) storeSurface(g_obs.base, g_obs.profile->nativeSurfaceRva, n);
+    if (font && fontVt) {
+        reinterpret_cast<VtMethodFn>(fontVt[0][kFontOnResetDevice])(font);
+    }
+    g_obs.haveDescs = false;
+    return ok;
+}
+
+// Desktop mode of the monitor holding the window (exclusive at the native
+// resolution: no display-mode change, still true page-flipped exclusive).
+bool desktopModeForHwnd(HWND hwnd, DisplayMode* out) {
+    HMONITOR mon = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+    MONITORINFOEXA mi;
+    memset(&mi, 0, sizeof(mi));
+    mi.cbSize = sizeof(mi);
+    if (!mon || !GetMonitorInfoA(mon, reinterpret_cast<MONITORINFO*>(&mi))) return false;
+    DEVMODEA dm;
+    memset(&dm, 0, sizeof(dm));
+    dm.dmSize = sizeof(dm);
+    if (!EnumDisplaySettingsA(mi.szDevice, ENUM_CURRENT_SETTINGS, &dm)) {
+        return false;
+    }
+    out->w = long(dm.dmPelsWidth);
+    out->h = long(dm.dmPelsHeight);
+    out->refresh = long(dm.dmDisplayFrequency);
+    return out->w > 0 && out->h > 0;
+}
+
+void enterExclusive(HWND hwnd) {
+    DisplayMode mode;
+    if (!desktopModeForHwnd(hwnd, &mode)) {
+        DM_LOG("fullscreen: cannot query desktop mode; staying windowed");
+        return;
+    }
+    unsigned char* pp = g_obs.base + g_obs.profile->ppRva;
+    unsigned char fallback[kPp_Size];
+    ppSave(fallback, pp);
+    ppSave(g_fsSavedPp, pp);
+    ppEnterExclusive(pp, mode, uintptr_t(hwnd));
+    ppApplyVSync(pp, g_fsVSync);
+    DM_LOG("fullscreen: entering exclusive %ldx%ld@%ldhz", mode.w, mode.h,
+           mode.refresh);
+    if (resetSequence(fallback, "fullscreen-enter")) {
+        g_fsExclusive = true;
+    } else {
+        // resetSequence already restored the windowed parameters.
+        DM_LOG("fullscreen: enter failed; staying windowed");
+    }
+}
+
+void exitExclusive() {
+    unsigned char* pp = g_obs.base + g_obs.profile->ppRva;
+    unsigned char fallback[kPp_Size];
+    ppSave(fallback, pp);
+    ppRestoreWindowed(pp, g_fsSavedPp);
+    ppApplyVSync(pp, g_fsVSync);
+    DM_LOG("fullscreen: exiting to windowed");
+    if (resetSequence(fallback, "fullscreen-exit")) {
+        g_fsExclusive = false;
+        // Re-capture the resize baseline at the restored window size.
+        g_resizeState = ResizeState();
+    } else {
+        // Parameters were rolled back to the exclusive block; still inside.
+        DM_LOG("fullscreen: exit failed; staying exclusive");
+    }
+}
+
 }  // namespace
 
 void setHookContext(unsigned char* ddrawBase, const DdrawProfile* profile,
@@ -128,6 +251,14 @@ void setResizeConfig(bool enabled) {
     g_resizeEnabled = enabled;
 }
 
+void setFullscreenConfig(bool enabled, bool hotkey, long vsync,
+                         bool requestEnter) {
+    g_fsEnabled = enabled;
+    g_fsHotkey = hotkey;
+    g_fsVSync = vsync;
+    g_fsPending = enabled && requestEnter;
+}
+
 unsigned char* entryTrampolineBuffer() {
     return g_entryTrampoline;
 }
@@ -145,17 +276,75 @@ unsigned long hookCallCount() {
 }
 
 extern "C" void dmFlipEntryWork() {
-    if (!g_resizeEnabled || !g_obs.base || !g_obs.profile) return;
+    if (!g_obs.base || !g_obs.profile) return;
+    IDirect3DDevice9* dev = *reinterpret_cast<IDirect3DDevice9**>(
+        g_obs.base + g_obs.profile->deviceRva);
+    if (!dev) return;
     HWND hwnd = reinterpret_cast<HWND>(
         *reinterpret_cast<void**>(g_obs.base + g_obs.profile->hwndRva));
-    RECT rc;
-    if (!hwnd || !GetClientRect(hwnd, &rc)) return;
 
+    // Hotkey first: a key pressed during a lost-device window must still
+    // latch the request; it executes once the device is healthy again.
+    if (g_fsEnabled && g_fsHotkey) {
+        const bool down = (GetAsyncKeyState(VK_F11) & 0x8000) != 0;
+        if (down && !g_fsKeyWasDown) {
+            g_fsPending = true;
+        }
+        g_fsKeyWasDown = down;
+    }
+
+    // Device-lost handling: in exclusive mode focus loss is routine. While
+    // lost, skip the frame; when resettable, recover to the CURRENT
+    // parameters (still exclusive until we choose otherwise).
+    const HRESULT tcl = dev->TestCooperativeLevel();
+    if (tcl == D3DERR_DEVICELOST) {
+        static bool announced = false;
+        if (!announced) {
+            DM_LOG("device: D3DERR_DEVICELOST - skipping frames until "
+                   "resettable");
+            announced = true;
+        }
+        g_skipThisFlip = 1;
+        return;
+    }
+    if (tcl == D3DERR_DEVICENOTRESET) {
+        static bool announced2 = false;
+        if (!announced2) {
+            DM_LOG("device: D3DERR_DEVICENOTRESET - recovering");
+            announced2 = true;
+        }
+    }
+    // Any other TCL result clears the announcements next time around.
+    const bool needRecovery = (tcl == D3DERR_DEVICENOTRESET);
+
+    if (g_fsEnabled && g_fsPending && !needRecovery && hwnd) {
+        g_fsPending = false;
+        if (!g_fsExclusive) {
+            enterExclusive(hwnd);
+        } else {
+            exitExclusive();
+        }
+        return;  // one switch per flip; evaluate sizes on the next one
+    }
+
+    if (needRecovery) {
+        if (resetSequence(nullptr, "device-recovery")) {
+            DM_LOG("device: recovered after D3DERR_DEVICENOTRESET");
+        } else {
+            g_skipThisFlip = 1;
+        }
+        return;
+    }
+
+    // Windowed backbuffer resize (never while exclusive).
+    if (!g_resizeEnabled || g_fsExclusive || !hwnd) return;
+    RECT rc;
+    if (!GetClientRect(hwnd, &rc)) return;
     ResizeInput in;
     in.clientW = rc.right - rc.left;
     in.clientH = rc.bottom - rc.top;
-    in.bbW = long(readU32(g_obs.base, g_obs.profile->ppRva));
-    in.bbH = long(readU32(g_obs.base, g_obs.profile->ppRva + 4));
+    in.bbW = ppWidth(g_obs.base + g_obs.profile->ppRva);
+    in.bbH = ppHeight(g_obs.base + g_obs.profile->ppRva);
     in.borderless = *reinterpret_cast<unsigned char*>(
         g_obs.base + g_obs.profile->borderlessRva);
     long newW = 0, newH = 0;
@@ -165,79 +354,14 @@ extern "C" void dmFlipEntryWork() {
     DM_LOG("resize: client %ldx%ld stable; backbuffer %ldx%ld -> %ldx%ld",
            in.clientW, in.clientH, in.bbW, in.bbH, newW, newH);
 
-    // Own font-safe reset sequence (the wrapper's helper dereferences the
-    // font at +0x74 without a null check and crashes in direct efz.exe
-    // launches where Revival's text render never initialized).
-    IDirect3DDevice9* dev = *reinterpret_cast<IDirect3DDevice9**>(
-        g_obs.base + g_obs.profile->deviceRva);
-    void* font = *reinterpret_cast<void**>(g_obs.base + g_obs.profile->fontRva);
-    IDirect3DSurface9* staging = *reinterpret_cast<IDirect3DSurface9**>(
-        g_obs.base + g_obs.profile->rendererObjectRva);
-    IDirect3DSurface9* native = *reinterpret_cast<IDirect3DSurface9**>(
-        g_obs.base + g_obs.profile->nativeSurfaceRva);
-    if (!dev || !staging || !native) {
-        DM_LOG("resize: device/surfaces missing; skipping reset");
-        return;
-    }
-
-    // Capture the surface descriptions before releasing anything so the
-    // recreation matches the wrapper's formats exactly.
-    D3DSURFACE_DESC dS = {}, dN = {};
-    if (FAILED(staging->GetDesc(&dS)) || FAILED(native->GetDesc(&dN))) {
-        DM_LOG("resize: GetDesc failed; skipping reset");
-        return;
-    }
-
-    void*** fontVt = reinterpret_cast<void***>(font);
-    Recreator recreator{dev};
-
-    const long oldPpW = in.bbW;
-    const long oldPpH = in.bbH;
-    if (font && fontVt) {
-        reinterpret_cast<VtMethodFn>(fontVt[0][kFontOnLostDevice])(font);
-    }
-    staging->Release();
-    native->Release();
-    *reinterpret_cast<IDirect3DSurface9**>(g_obs.base +
-                                           g_obs.profile->rendererObjectRva) = nullptr;
-    *reinterpret_cast<IDirect3DSurface9**>(g_obs.base +
-                                           g_obs.profile->nativeSurfaceRva) = nullptr;
-
-    *reinterpret_cast<long*>(g_obs.base + g_obs.profile->ppRva) = newW;
-    *reinterpret_cast<long*>(g_obs.base + g_obs.profile->ppRva + 4) = newH;
-    HRESULT hr = dev->Reset(reinterpret_cast<D3DPRESENT_PARAMETERS*>(
-        g_obs.base + g_obs.profile->ppRva));
-
-    const bool resetOk = SUCCEEDED(hr);
-    if (!resetOk) {
-        // A failed Reset (e.g. D3DERR_INVALIDCALL because co-loaded mods hold
-        // default-pool D3D9 resources - training/netplay overlay buffers)
-        // has no side effects on the device. Restore the old presentation
-        // parameters; the window still maximizes, just with the DWM-stretched
-        // original backbuffer.
-        DM_LOG("resize: Reset hr=%08lx - rolling back; resize disabled for "
-               "this session",
-               long(hr));
-        *reinterpret_cast<long*>(g_obs.base + g_obs.profile->ppRva) = oldPpW;
-        *reinterpret_cast<long*>(g_obs.base + g_obs.profile->ppRva + 4) = oldPpH;
-    }
-
-    void* s = recreator.recreate(dS);
-    void* n = recreator.recreate(dN);
-    DM_LOG("resize: surface recreation staging=%d native=%d", s ? 1 : 0,
-           n ? 1 : 0);
-    if (s) {
-        storeSurface(g_obs.base, g_obs.profile->rendererObjectRva, s);
-    }
-    if (n) {
-        storeSurface(g_obs.base, g_obs.profile->nativeSurfaceRva, n);
-    }
-    if (font && fontVt) {
-        reinterpret_cast<VtMethodFn>(fontVt[0][kFontOnResetDevice])(font);
-    }
-    g_obs.haveDescs = false;
-    if (!resetOk) {
-        g_resizeEnabled = false;
+    unsigned char* pp = g_obs.base + g_obs.profile->ppRva;
+    unsigned char fallback[kPp_Size];
+    ppSave(fallback, pp);
+    *reinterpret_cast<long*>(pp) = newW;
+    *reinterpret_cast<long*>(pp + 4) = newH;
+    ppApplyVSync(pp, g_fsVSync);
+    if (!resetSequence(fallback, "resize")) {
+        g_resizeEnabled = false;  // foreign device resources; stop attempting
         g_skipThisFlip = 1;
     }
 }

@@ -20,6 +20,14 @@ struct Config {
                                // value) | Point (override) (default Linear)
     unsigned long backgroundColor;  // [Display] BackgroundColor RRGGBB hex
                                     // (default 000000)
+    int fullscreen;               // [Display] Fullscreen (default 0): start
+                                  // in exclusive fullscreen at the desktop
+                                  // mode (F11 toggles)
+    int fullscreenHotkey;         // [Display] FullscreenHotkey (default 1):
+                                  // F11 toggles exclusive fullscreen
+    long vsync;                   // [Display] VSync: -1 keep the wrapper's
+                                  // presentation interval, 0 immediate,
+                                  // 1 vsync (default -1)
     int resizeBackBuffer;           // [Display] ResizeBackBuffer (default 1):
                                     // make the backbuffer follow window
                                     // maximize/restore/resize; Revival's

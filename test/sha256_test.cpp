@@ -7,6 +7,7 @@
 #include <cstring>
 
 #include "../src/format.h"
+#include "../src/fullscreen.h"
 #include "../src/geometry.h"
 #include "../src/resize.h"
 #include "../src/sha256.h"
@@ -129,6 +130,52 @@ static void runResizeTests() {
     if (none) std::printf("PASS rz borderless-minimize-quiet\n");
     else { std::printf("FAIL rz borderless-minimize-quiet\n"); ++failures; }
     (void)resets;
+}
+
+
+static void runFullscreenTests() {
+    // Build a fake windowed D3DPRESENT_PARAMETERS: 1280x960, swap COPY(0),
+    // windowed TRUE, interval default (0 = unspecified/IMMEDIATE-ish).
+    unsigned char pp[dm::kPp_Size];
+    memset(pp, 0, sizeof(pp));
+    auto w32 = [](unsigned char* p, int off, unsigned long v) {
+        memcpy(p + off, &v, 4);
+    };
+    auto r32 = [](const unsigned char* p, int off) {
+        unsigned long v; memcpy(&v, p + off, 4); return v;
+    };
+    w32(pp, dm::kPp_BackBufferWidth, 1280);
+    w32(pp, dm::kPp_BackBufferHeight, 960);
+    w32(pp, dm::kPp_SwapEffect, 0);
+    w32(pp, dm::kPp_Windowed, 1);
+
+    unsigned char saved[dm::kPp_Size];
+    dm::ppSave(saved, pp);
+    dm::DisplayMode m{2560, 1440, 144};
+    dm::ppEnterExclusive(pp, m, 0x12345678);
+    bool ok = r32(pp, dm::kPp_BackBufferWidth) == 2560 &&
+              r32(pp, dm::kPp_BackBufferHeight) == 1440 &&
+              r32(pp, dm::kPp_SwapEffect) == dm::kSwapEffectDiscard &&
+              r32(pp, dm::kPp_DeviceWindow) == 0x12345678 &&
+              r32(pp, dm::kPp_Windowed) == 0 &&
+              r32(pp, dm::kPp_RefreshRate) == 144;
+    if (ok) std::printf("PASS fs enter-exclusive fields\n");
+    else { std::printf("FAIL fs enter-exclusive fields\n"); ++failures; }
+
+    dm::ppApplyVSync(pp, 1);
+    ok = r32(pp, dm::kPp_PresentationInterval) == 1;
+    dm::ppApplyVSync(pp, -1);
+    ok = ok && r32(pp, dm::kPp_PresentationInterval) == 1;  // -1 keeps
+    dm::ppApplyVSync(pp, 0);
+    ok = ok && r32(pp, dm::kPp_PresentationInterval) == 0;
+    if (ok) std::printf("PASS fs vsync choices\n");
+    else { std::printf("FAIL fs vsync choices\n"); ++failures; }
+
+    dm::ppRestoreWindowed(pp, saved);
+    ok = dm::ppIsWindowed(pp) && dm::ppWidth(pp) == 1280 &&
+         dm::ppHeight(pp) == 960 && r32(pp, dm::kPp_SwapEffect) == 0;
+    if (ok) std::printf("PASS fs restore-windowed roundtrip\n");
+    else { std::printf("FAIL fs restore-windowed roundtrip\n"); ++failures; }
 }
 
 static void expectFormat(const char* label, const char* expected, const char* fmt, ...) {
@@ -270,6 +317,7 @@ int main(int argc, char** argv) {
     expect("56x'a", buf, 56,
            "b35439a4ac6f0948b6d6f9e3c6af0f5f590ce20f1bde7090ef7970686ec6738a");
 
+    runFullscreenTests();
     runResizeTests();
     runGeometryTests();
     runFormatTests();

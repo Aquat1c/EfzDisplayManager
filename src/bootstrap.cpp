@@ -192,6 +192,15 @@ DWORD WINAPI bootstrapThread(void* param) {
         }
     }
     setResizeConfig(cfg.resizeBackBuffer != 0 && !deviceResourceModLoaded);
+    if (cfg.fullscreen && deviceResourceModLoaded) {
+        DM_LOG("coexist: exclusive fullscreen also disabled (device-resource "
+               "mod loaded)");
+    }
+    setFullscreenConfig(!deviceResourceModLoaded, cfg.fullscreenHotkey != 0,
+                        cfg.vsync, cfg.fullscreen != 0);
+    if (!deviceResourceModLoaded && cfg.fullscreen) {
+        DM_LOG("fullscreen: exclusive requested at startup (F11 toggles)");
+    }
     if (cfg.resizeBackBuffer) {
         prepareEntryTrampoline();
         unsigned char* entrySite = base + profile->flipEntryRva;
