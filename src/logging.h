@@ -7,15 +7,19 @@ namespace log {
 
 // Opens (appends to) DisplayManager.log next to the loaded module. Safe to
 // call multiple times; returns false when the log file cannot be created, in
-// which case DM_LOG calls become no-ops.
+// which case write() calls become no-ops. Pure Win32 - no CRT file I/O - so
+// the import table stays XP-clean and toolchain-agnostic.
 bool init(HMODULE module);
 
 // Flushes and closes the log file, if open.
 void shutdown();
 
-// Appends one line with a timestamp. Used only for startup/teardown and
-// admission diagnostics; never call this from a per-frame path.
+// Appends one line with a timestamp. Used only for startup/teardown,
+// admission diagnostics, and throttled hook observations; never per-frame.
 void write(const char* format, ...);
+
+// True when init() succeeded (gates verbose observation logging).
+bool enabled();
 
 }  // namespace log
 }  // namespace dm

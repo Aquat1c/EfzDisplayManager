@@ -1,15 +1,16 @@
 #pragma once
 
 #define DM_VERSION_MAJOR 0
-#define DM_VERSION_MINOR 1
+#define DM_VERSION_MINOR 2
 #define DM_VERSION_PATCH 0
 
-#define DM_VERSION_STRING "0.1.0"
+#define DM_VERSION_STRING "0.2.0"
 
 // Development stage marker from the feasibility handoff (section 16.3).
-// "transparent-bootstrap": the DLL loads and logs, installs no hooks, and
-// leaves the native display path fully in charge.
-#define DM_STAGE_STRING "transparent-bootstrap"
+// "stage-a-observe": forward-only observation hook at the wrapper's final
+// StretchRect; every call is forwarded unchanged and the native display
+// path stays fully in charge.
+#define DM_STAGE_STRING "stage-a-observe"
 
 namespace dm {
 

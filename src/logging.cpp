@@ -1,8 +1,8 @@
 #include "logging.h"
 
 #include <cstdarg>
-#include <cstdio>
-#include <ctime>
+
+#include "format.h"
 
 namespace dm {
 namespace log {
@@ -10,70 +10,84 @@ namespace log {
 namespace {
 
 CRITICAL_SECTION g_lock = {};
-bool g_lock_ready = false;
-FILE* g_file = nullptr;
+bool g_lockReady = false;
+HANDLE g_file = INVALID_HANDLE_VALUE;
 
 void lock() {
-    if (g_lock_ready) EnterCriticalSection(&g_lock);
+    if (g_lockReady) EnterCriticalSection(&g_lock);
 }
 
 void unlock() {
-    if (g_lock_ready) LeaveCriticalSection(&g_lock);
+    if (g_lockReady) LeaveCriticalSection(&g_lock);
 }
 
 }  // namespace
 
 bool init(HMODULE module) {
-    if (!g_lock_ready) {
+    if (!g_lockReady) {
         InitializeCriticalSection(&g_lock);
-        g_lock_ready = true;
+        g_lockReady = true;
     }
+    if (g_file != INVALID_HANDLE_VALUE) return true;
 
-    if (g_file) return true;
+    wchar_t modulePath[MAX_PATH];
+    if (GetModuleFileNameW(module, modulePath, MAX_PATH) == 0) return false;
 
-    wchar_t module_path[MAX_PATH];
-    if (GetModuleFileNameW(module, module_path, MAX_PATH) == 0) return false;
-
-    wchar_t* last_slash = wcsrchr(module_path, L'\\');
-    if (!last_slash) return false;
-    *last_slash = L'\0';
-
-    wchar_t log_path[MAX_PATH];
-    if (swprintf_s(log_path, L"%ls\\DisplayManager.log", module_path) <= 0) return false;
-
-    if (_wfopen_s(&g_file, log_path, L"a") != 0) {
-        g_file = nullptr;
-        return false;
+    wchar_t* lastSlash = nullptr;
+    for (wchar_t* p = modulePath; *p; ++p) {
+        if (*p == L'\\') lastSlash = p;
     }
-    return true;
+    if (!lastSlash) return false;
+    *lastSlash = L'\0';
+
+    wchar_t logPath[MAX_PATH];
+    int n = wsprintfW(logPath, L"%s\\DisplayManager.log", modulePath);
+    if (n <= 0 || n >= MAX_PATH) return false;
+
+    g_file = CreateFileW(logPath, FILE_APPEND_DATA, FILE_SHARE_READ, nullptr,
+                         OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+    return g_file != INVALID_HANDLE_VALUE;
 }
 
 void shutdown() {
     lock();
-    if (g_file) {
-        fclose(g_file);
-        g_file = nullptr;
+    if (g_file != INVALID_HANDLE_VALUE) {
+        CloseHandle(g_file);
+        g_file = INVALID_HANDLE_VALUE;
     }
     unlock();
 }
 
+bool enabled() {
+    return g_file != INVALID_HANDLE_VALUE;
+}
+
 void write(const char* format, ...) {
+    char line[512];
+    SYSTEMTIME st;
+    GetLocalTime(&st);
+    int prefix = dm::formatString(line, sizeof(line) - 2,
+                                  "[%02u:%02u:%02u.%03u] ", st.wHour,
+                                  st.wMinute, st.wSecond, st.wMilliseconds);
+    if (prefix < 0 || prefix >= int(sizeof(line)) - 4) return;
+
+    va_list args;
+    va_start(args, format);
+    int body = dm::formatStringV(line + prefix, sizeof(line) - prefix - 2,
+                                format, args);
+    va_end(args);
+    if (body < 0) return;
+
+    int total = prefix + body;
+    if (total >= int(sizeof(line)) - 2) total = sizeof(line) - 2 - 1;
+    line[total] = '\r';
+    line[total + 1] = '\n';
+
     lock();
-
-    if (g_file) {
-        SYSTEMTIME st;
-        GetLocalTime(&st);
-
-        va_list args;
-        va_start(args, format);
-        std::fprintf(g_file, "[%02u:%02u:%02u.%03u] ",
-                     st.wHour, st.wMinute, st.wSecond, st.wMilliseconds);
-        std::vfprintf(g_file, format, args);
-        std::fprintf(g_file, "\n");
-        std::fflush(g_file);
-        va_end(args);
+    if (g_file != INVALID_HANDLE_VALUE) {
+        DWORD written = 0;
+        WriteFile(g_file, line, total + 2, &written, nullptr);
     }
-
     unlock();
 }
 

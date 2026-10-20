@@ -13,24 +13,30 @@ conversion, timer, input, and Revival session behavior in place.
 |---|---|
 | Feasibility assessment | Complete — see [EFZ_DisplayManager_Feasibility_2026-10-20.md](EFZ_DisplayManager_Feasibility_2026-10-20.md), especially section 16 (agent implementation handoff) |
 | Stage A research (anchors verified, contracts mapped) | Complete — see [docs/STAGE_A_RESEARCH_2026-10-20.md](docs/STAGE_A_RESEARCH_2026-10-20.md) |
-| Stage A prototype (transparent final-scale adapter) | **Not started** |
-| In-game runtime qualification | **Not started** |
+| Stage A observation prototype (v0.2.0) | **Implemented and runtime-verified**: hash-pinned admission (both 1.02j Ddraws), forward-only hook at the wrapper's final StretchRect, ~3600 forwarded flips observed in-game (windowed) with the native path fully preserved |
+| Display adaptation (aspect/integer output, Point filter) | Not started |
+| In-game full qualification matrix | Not started |
 
-Current code state: transparent bootstrap stub only. The DLL loads, writes
-`DisplayManager.log` next to itself, and installs no hooks. The native display
-path remains fully in charge. This exists to validate the loader route and
-toolchain before the admission/hook work in Stage A.
+Current code state: transparent observation module. It loads, admits the
+wrapper by SHA-256 + PE timestamp, installs one forward-only hook at the
+shared final-blit call site, logs the observed geometry (throttled), and
+changes nothing about what is drawn.
 
 ## Build
 
-MSVC, Win32/x86 (EFZ is a 32-bit process). Static CRT, no extra dependencies.
+MSVC **v141** toolset, Win32/x86 (EFZ is a 32-bit process), Windows XP
+compatible: `_WIN32_WINNT=0x0501`, PE OS/subsystem version 5.01, and **no CRT
+at all** (`/NODEFAULTLIB`, in-tree memcpy/memset + formatter) so the import
+table contains only XP-era KERNEL32/USER32 functions — the stock v141 static
+CRT would import Vista+ `FlsAlloc`/`InitializeCriticalSectionEx`.
 
 ```
-cmake -S . -B build -A Win32
-cmake --build build --config Release
+cmake -S . -B build-xp -A Win32 -T v141
+cmake --build build-xp --config Release
+build-xp\Release\dm_sha256_test.exe   # self-tests: SHA vectors, file pins, formatter
 ```
 
-Output: `build/Release/DisplayManager.dll`.
+Output: `build-xp/Release/DisplayManager.dll` (PE32, OS 5.01).
 
 ## Install
 

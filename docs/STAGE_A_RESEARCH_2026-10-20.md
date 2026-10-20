@@ -409,11 +409,58 @@ unchanged for both profiles**; only the RVA table differs. The profiles in
 `tools/verify_anchors.py` now encode all of these anchors and PASS on both
 binaries.
 
-## 11. Residual runtime unknowns (accepted for Stage A start)
+## 11. Residual runtime unknowns — resolved by the Stage A observation run
 
-- Actual runtime values of the filter global and PP dims (the observation hook
-  logs them per frame).
-- Whether the game ever calls the stubbed Blt/BltFast, and what message
-  `0x2000` is used for.
-- The original-J package's exe (`194710a1…`) is not covered by the feasibility
-  hash table; hash-pin it separately if that profile is ever admitted.
+The v0.2.0 `stage-a-observe` module ran inside the game on 2026-10-20
+(evidence: [evidence/runtime-observe-1.txt](evidence/runtime-observe-1.txt);
+~3600 forwarded flips over ~57 s, windowed, then clean termination):
+
+- **Native source at the final blit:** 640x480, `D3DPOOL_DEFAULT`,
+  `D3DFMT_X8R8G8B8` (fmt 22) — exactly the surface class the feasibility
+  report described.
+- **Output backbuffer:** 1280x960 (4:3 windowed), same format; PP globals
+  `0xDF28C`/`0xDF290` confirmed as BackBufferWidth/Height (1280/960).
+- **Windowed `dstRect = NULL`** (full-output stretch) — static analysis
+  confirmed at runtime.
+- **Effective filter = 2 (`D3DTEXF_LINEAR`)** — the game's surface caps satisfy
+  the wrapper's LINEAR condition, so stock upscale is bilinear. The
+  Point/Sharp stages will be the first visible change from adaptation.
+- **Cadence:** ~62.5 flips/s sustained — consistent with the wrapper's
+  63.9 Hz timer domain; no resets or surface recreation occurred during the
+  windowed run (native-surface pointer never changed).
+- Still unobserved at runtime (harmless): whether the game ever calls the
+  stubbed Blt/BltFast, message `0x2000`'s meaning, and the borderless-path
+  runtime geometry (dstRect letterbox values). The observation hook logs all
+  of these automatically when they occur.
+
+## 12. Stage A implementation record (v0.2.0, 2026-10-20)
+
+- Module: `mods/DisplayManager/DisplayManager.dll`, loaded by EfzModManager;
+  DllMain only logs + starts a worker (loader-lock discipline).
+- Admission: DDRAW.dll file SHA-256 + loaded PE timestamp against two pinned
+  profiles (renderer-split J and original J — two different 1.02j Ddraws
+  exist; each carries its own anchor table). Mismatch ⇒ inert, native path
+  untouched. The fail-closed gate caught a real transcription error in the
+  first deployed pin (`…6ada9f60` vs correct `…6ad9f603`) before any hooking —
+  the design worked as intended.
+- Hook: 6-byte site `0x279C0` (split) / `0x27900` (orig) byte-verified, then
+  patched with `E8 call rel32 + NOP` under all-threads-suspended; a
+  `__stdcall` 6-arg handler reproduces the original stdcall stack effect
+  exactly and forwards every call to `IDirect3DDevice9::StretchRect`
+  unchanged.
+- Toolchain (XP requirement): MSVC v141 (14.16), `_WIN32_WINNT=0x0501`,
+  `/SUBSYSTEM:WINDOWS,5.01`, static-linked **without any CRT**
+  (`/NODEFAULTLIB /ENTRY:DllMain`, in-tree memcpy/memset and a custom
+  formatter) — the stock v141 CRT imports Vista+ `FlsAlloc`/
+  `InitializeCriticalSectionEx` and would not load on XP x86. Final imports:
+  28 KERNEL32 + 2 USER32 functions, all XP-era; PE OS/subsystem version 5.01.
+- Build: `cmake -S . -B build-xp -A Win32 -T v141 && cmake --build build-xp
+  --config Release`. Self-tests: `dm_sha256_test` (FIPS vectors, real-file
+  hash pins, formatter cases incl. the overload-ambiguity regression).
+- Two implementation bugs were found and fixed during bring-up, both caught by
+  the fail-closed design and local tests: (1) the profile hash transcription
+  error above; (2) an MSVC x86 overload-ambiguity where
+  `formatString(out, cap, fmt, charPtr)` resolved to the `va_list` overload
+  (va_list **is** char* on x86) and dereferenced the string as an argument
+  cursor — fixed by splitting into `formatString` (variadic) and
+  `formatStringV` (va_list), with a regression test.

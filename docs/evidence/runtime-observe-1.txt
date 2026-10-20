@@ -1,0 +1,21 @@
+[17:28:26.807] EFZ DisplayManager v0.2.0 (stage-a-observe): attached, deferring to bootstrap worker
+[17:28:26.809] admission: DDRAW.dll loaded at 72720000 (D:\EFZ_FULLPACK\DDRAW.dll)
+[17:28:26.815] admission: file SHA-256: 0e072342d87d240e18969bc3663032e0e370eaba24d1fbb8e6c1f6216ad9f603
+[17:28:26.815] admission: profile accepted: renderer-split Revival 1.02j (2026-08-02) (PE timestamp 6a6f1795)
+[17:28:27.066] bootstrap: wrapper device 0d588e40, native surface 0d56cb80
+[17:28:27.098] detour: installed 6-byte hook at 727479c0 (target 73711d40)
+[17:28:27.098] bootstrap: Stage A observation hook active (forward-only)
+[17:28:27.273] flip #1: src=[640x480 pool=0 fmt=22] dst=[1280x960 pool=0 fmt=22] dstRect=NULL(full) filter=2 pp=1280x960 borderless=0 <changed>
+[17:28:27.276] flip #2: src=[640x480 pool=0 fmt=22] dst=[1280x960 pool=0 fmt=22] dstRect=NULL(full) filter=2 pp=1280x960 borderless=0
+[17:28:27.280] flip #3: src=[640x480 pool=0 fmt=22] dst=[1280x960 pool=0 fmt=22] dstRect=NULL(full) filter=2 pp=1280x960 borderless=0
+[17:28:27.296] flip #4: src=[640x480 pool=0 fmt=22] dst=[1280x960 pool=0 fmt=22] dstRect=NULL(full) filter=2 pp=1280x960 borderless=0
+[17:28:27.311] flip #5: src=[640x480 pool=0 fmt=22] dst=[1280x960 pool=0 fmt=22] dstRect=NULL(full) filter=2 pp=1280x960 borderless=0
+[17:28:27.326] flip #6: src=[640x480 pool=0 fmt=22] dst=[1280x960 pool=0 fmt=22] dstRect=NULL(full) filter=2 pp=1280x960 borderless=0
+[17:28:27.341] flip #7: src=[640x480 pool=0 fmt=22] dst=[1280x960 pool=0 fmt=22] dstRect=NULL(full) filter=2 pp=1280x960 borderless=0
+[17:28:27.356] flip #8: src=[640x480 pool=0 fmt=22] dst=[1280x960 pool=0 fmt=22] dstRect=NULL(full) filter=2 pp=1280x960 borderless=0
+[17:28:36.591] flip #600: src=[640x480 pool=0 fmt=22] dst=[1280x960 pool=0 fmt=22] dstRect=NULL(full) filter=2 pp=1280x960 borderless=0
+[17:28:46.293] flip #1200: src=[640x480 pool=0 fmt=22] dst=[1280x960 pool=0 fmt=22] dstRect=NULL(full) filter=2 pp=1280x960 borderless=0
+[17:28:55.682] flip #1800: src=[640x480 pool=0 fmt=22] dst=[1280x960 pool=0 fmt=22] dstRect=NULL(full) filter=2 pp=1280x960 borderless=0
+[17:29:05.072] flip #2400: src=[640x480 pool=0 fmt=22] dst=[1280x960 pool=0 fmt=22] dstRect=NULL(full) filter=2 pp=1280x960 borderless=0
+[17:29:14.463] flip #3000: src=[640x480 pool=0 fmt=22] dst=[1280x960 pool=0 fmt=22] dstRect=NULL(full) filter=2 pp=1280x960 borderless=0
+[17:29:23.851] flip #3600: src=[640x480 pool=0 fmt=22] dst=[1280x960 pool=0 fmt=22] dstRect=NULL(full) filter=2 pp=1280x960 borderless=0
