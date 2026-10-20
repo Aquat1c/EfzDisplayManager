@@ -83,6 +83,7 @@ unsigned long readU32(unsigned char* base, uint32_t rva) {
 struct Recreator {
     IDirect3DDevice9* dev;
     void* recreate(const D3DSURFACE_DESC& d) {
+        compatSuspendTracking();
         void* out = nullptr;
         HRESULT hr;
         if (d.Usage & D3DUSAGE_RENDERTARGET) {
@@ -98,6 +99,7 @@ struct Recreator {
         if (FAILED(hr)) {
             DM_LOG("resize: surface create failed hr=%08lx", long(hr));
         }
+        compatResumeTracking();
         return out;
     }
 };
@@ -154,6 +156,12 @@ bool resetSequence(unsigned char* fallbackPp, const char* reason) {
     }
     void*** fontVt = reinterpret_cast<void***>(font);
     Recreator recreator{dev};
+    // The wrapper's staging/native are recreated below through the hooked
+    // creation slots; they must never sit in the foreign list, or the next
+    // switch force-releases freed pointers (use-after-free that corrupts
+    // the device - the actual exit-death root cause).
+    compatExcludeForeign(reinterpret_cast<void*>(staging),
+                         reinterpret_cast<void*>(native));
     if (font && fontVt) {
         reinterpret_cast<VtMethodFn>(fontVt[0][kFontOnLostDevice])(font);
     }

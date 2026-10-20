@@ -433,7 +433,37 @@ The v0.2.0 `stage-a-observe` module ran inside the game on 2026-10-20
   runtime geometry (dstRect letterbox values). The observation hook logs all
   of these automatically when they occur.
 
-## 12. Stage A implementation record (v0.2.0 → v0.8.0, 2026-10-20)
+## 12. Stage A implementation record (v0.2.0 → v0.8.1, 2026-10-20)
+
+**v0.8.1 exclusive+mods continued (user reports: exit still broke; reproduced
+with InGameNetplay ALONE as well):**
+
+- Real bug found and fixed: the wrapper's own staging/native surfaces,
+  recreated through OUR hooked creation slots after any reset, entered the
+  compat "foreign resource" list. The next switch then force-released the
+  already-freed pointers (use-after-free corrupting the device) - this
+  explains enter-succeeds/exit-dies patterns. Fixed via tracking suspension
+  around our recreation + explicit exclusion of the wrapper's surfaces.
+- Training mode made cooperative (its repo, commit 4e3af4b): the external
+  fallback window's second D3D9 device now releases itself while idle and
+  stands down under game exclusive fullscreen. Built and deployed; in the
+  test session the fallback thread was not active (in-game overlay path),
+  so this specific device was not the netplay-only blocker.
+- InGameNetplay investigated: its hook-install dummy device IS properly
+  released; its reset watchdog (GetSwapChain/GetPresentParameters) holds no
+  cached backbuffer reference. The netplay-only exit blocker is still
+  unidentified - in one instrumented run the enter failed with ZERO
+  resources swept, meaning the blocker is not tracked resources at all
+  (candidates: ImGui-state interactions, foreground/focus state at toggle
+  time, or wrapper-internal refs outside hooked slots).
+- Honest status: exclusive WITH mods loaded is NOT verified working end to
+  end. Verified: exclusive mod-free (repeatedly), single enter/exit with
+  mods in some sessions, resize-with-mods. Borderless remains the reliable
+  mode with mods. Next session needs a deterministic repro harness (forced
+  debug-overlay open + scripted toggles with logged sweep contents and
+  foreground state) before more blind fixes.
+
+The sections below describe earlier versions as implemented at the time.
 
 **v0.8.0 exclusive-with-mods hardening** (full exclusive support alongside
 training/netplay, no borderless fallback needed):

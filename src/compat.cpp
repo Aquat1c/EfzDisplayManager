@@ -216,6 +216,17 @@ bool compatInstall(IDirect3DDevice9* dev) {
     return true;
 }
 
+void compatExcludeForeign(void* a, void* b) {
+    for (int i = 0; i < g_trackedCount; ) {
+        if (g_tracked[i] == a || g_tracked[i] == b) {
+            g_tracked[i] = g_tracked[g_trackedCount - 1];
+            --g_trackedCount;
+        } else {
+            ++i;
+        }
+    }
+}
+
 int compatReleaseForeignResources() {
     const int n = g_trackedCount;
     for (int i = 0; i < n; ++i) {

@@ -20,6 +20,10 @@ namespace dm {
 // the layer and resets keep the mods gate.
 bool compatInstall(IDirect3DDevice9* dev);
 
+// Removes pointers from the tracked list WITHOUT releasing (used for the
+// wrapper's own surfaces, which their owner releases explicitly).
+void compatExcludeForeign(void* a, void* b);
+
 // Force-releases every tracked foreign DEFAULT-pool resource. Call right
 // before Reset (after releasing OUR OWN resources - those are untracked).
 // Returns how many resources were released.
