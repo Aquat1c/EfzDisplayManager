@@ -207,13 +207,15 @@ DWORD WINAPI bootstrapThread(void* param) {
         for (int m = 0; m < 3; ++m) {
             if (GetModuleHandleA(kDeviceResourceMods[m])) {
                 deviceResourceModLoaded = true;
-                DM_LOG("coexist: %s is loaded and holds D3D9 device "
-                       "resources; backbuffer resize disabled for this "
-                       "session (maximize falls back to the DWM stretch). "
-                       "Reset-aware resource handling in that mod would "
-                       "enable resizing alongside it.",
-                       kDeviceResourceMods[m]);
             }
+        }
+        if (deviceResourceModLoaded && !compatActive()) {
+            DM_LOG("coexist: a device-resource mod is loaded and the compat "
+                   "layer is unavailable; backbuffer resize disabled for "
+                   "this session (maximize falls back to the DWM stretch)");
+        } else if (deviceResourceModLoaded) {
+            DM_LOG("coexist: device-resource mod(s) loaded; compat layer "
+                   "will force-release their resources around OUR resets");
         }
     }
     // With the compat layer active, resets force-release foreign resources,
@@ -256,7 +258,7 @@ DWORD WINAPI bootstrapThread(void* param) {
         prepareEntryTrampoline();
         unsigned char* entrySite = base + profile->flipEntryRva;
         if (!installEntryDetour(entrySite, profile->entryBytes,
-                                sizeof(profile->entryBytes),
+                                profile->entryByteCount,
                                 reinterpret_cast<const void*>(&dmFlipEntryShim),
                                 entryTrampolineBuffer(),
                                 entryTrampolineCapacity())) {

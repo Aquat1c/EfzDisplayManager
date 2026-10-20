@@ -1,0 +1,77 @@
+[20:54:32.732] EFZ DisplayManager v0.7.1 (exclusive-fullscreen): attached, deferring to bootstrap worker
+[20:54:32.745] admission: DDRAW.dll loaded at 71b10000 (F:\EFZ - Copy\DDRAW.dll)
+[20:54:32.752] admission: file SHA-256: c486903e82037ea6eb648fce662a9ebc8c60537629a84fdbed573b7ed9045f7a
+[20:54:32.752] admission: profile accepted: Revival 2020-generation wrapper (1.02e-era) (PE timestamp 5ea72e7f)
+[20:54:33.253] bootstrap: wrapper device 05adf380, native surface 00ac1b20
+[20:54:33.253] compat: in-place vtable hooks installed (vt=05ae22dc tex=737119d0)
+[20:54:33.345] window: style 14ca0000 -> 14cf0000 (maximize enabled + drag-resize (pauses game during drag), client preserved)
+[20:54:33.382] detour: installed 6-byte hook at 71b2fc1f (target 737138d0)
+[20:54:33.382] coexist: device-resource mod(s) loaded; compat layer will force-release their resources around OUR resets
+[20:54:33.383] window: Alt+Enter now owned by DisplayManager (wrapper handler neutralized)
+[20:54:33.436] detour: installed 6-byte entry hook at 71b2f9e0 (trampoline 73719020)
+[20:54:33.436] bootstrap: hook active (observe + adapt: mode=0 scale=0 custom=640x480 filter=101 bg=000000)
+[20:54:33.477] surfaces: native 640x480, backbuffer 1280x960 (src 00ac1b20 dst 00ac18a0)
+[20:54:33.478] shaders: pipeline ready (filter=2 sharp=1 xbr=1)
+[20:54:33.478] flip #1: dstRect=NULL(full) filter=2 pp=1280x960 borderless=0 <changed>
+[20:54:33.478] adapt: -> (0,0,1280,960) 1280x960 filter=101 (was 2)
+[20:54:33.501] flip #2: dstRect=NULL(full) filter=2 pp=1280x960 borderless=0
+[20:54:33.501] adapt: -> (0,0,1280,960) 1280x960 filter=101 (was 2)
+[20:54:33.504] flip #3: dstRect=NULL(full) filter=2 pp=1280x960 borderless=0
+[20:54:33.504] adapt: -> (0,0,1280,960) 1280x960 filter=101 (was 2)
+[20:54:33.519] flip #4: dstRect=NULL(full) filter=2 pp=1280x960 borderless=0
+[20:54:33.519] adapt: -> (0,0,1280,960) 1280x960 filter=101 (was 2)
+[20:54:33.532] flip #5: dstRect=NULL(full) filter=2 pp=1280x960 borderless=0
+[20:54:33.532] adapt: -> (0,0,1280,960) 1280x960 filter=101 (was 2)
+[20:54:33.548] flip #6: dstRect=NULL(full) filter=2 pp=1280x960 borderless=0
+[20:54:33.548] adapt: -> (0,0,1280,960) 1280x960 filter=101 (was 2)
+[20:54:37.383] borderless: entering 2560x1440
+[20:54:37.387] borderless-enter: surface recreation staging=1 native=1
+[20:54:37.387] shaders: pipeline ready (filter=2 sharp=1 xbr=1)
+[20:54:37.388] surfaces: native 640x480, backbuffer 2560x1440 (src 10f8e080 dst 10f8d720)
+[20:54:37.388] flip #251: dstRect=NULL(full) filter=2 pp=2560x1440 borderless=0 <changed>
+[20:54:37.388] flip #251: native/device pointer changed (post-reset recreation)
+[20:54:37.388] adapt: -> (320,0,2240,1440) 1920x1440 filter=101 (was 2)
+[20:54:38.174] borderless: exiting to windowed
+[20:54:38.174] compat: force-released 2 foreign device resources
+[20:54:38.177] borderless-exit: surface recreation staging=1 native=1
+[20:54:38.178] shaders: pipeline ready (filter=2 sharp=1 xbr=1)
+[20:54:38.178] surfaces: native 640x480, backbuffer 1280x960 (src 10f8db80 dst 10f8d400)
+[20:54:38.178] flip #301: dstRect=NULL(full) filter=2 pp=1280x960 borderless=0 <changed>
+[20:54:38.178] flip #301: native/device pointer changed (post-reset recreation)
+[20:54:38.178] adapt: -> (0,0,1280,960) 1280x960 filter=101 (was 2)
+[20:54:40.683] resize: client 2560x1377 stable; backbuffer 1280x960 -> 2560x1377
+[20:54:40.683] compat: force-released 2 foreign device resources
+[20:54:40.685] resize: surface recreation staging=1 native=1
+[20:54:40.685] shaders: pipeline ready (filter=2 sharp=1 xbr=1)
+[20:54:40.685] surfaces: native 640x480, backbuffer 2560x1377 (src 10f8d5e0 dst 10f8d7c0)
+[20:54:40.685] flip #458: dstRect=NULL(full) filter=2 pp=2560x1377 borderless=0 <changed>
+[20:54:40.685] flip #458: native/device pointer changed (post-reset recreation)
+[20:54:40.685] adapt: -> (362,0,2198,1377) 1836x1377 filter=101 (was 2)
+[20:54:42.030] resize: client 640x480 stable; backbuffer 2560x1377 -> 1280x960
+[20:54:42.030] compat: force-released 2 foreign device resources
+[20:54:42.031] resize: surface recreation staging=1 native=1
+[20:54:42.032] shaders: pipeline ready (filter=2 sharp=1 xbr=1)
+[20:54:42.032] surfaces: native 640x480, backbuffer 1280x960 (src 10f8d400 dst 10f8dfe0)
+[20:54:42.032] flip #541: dstRect=NULL(full) filter=2 pp=1280x960 borderless=0 <changed>
+[20:54:42.032] flip #541: native/device pointer changed (post-reset recreation)
+[20:54:42.032] adapt: -> (0,0,1280,960) 1280x960 filter=101 (was 2)
+[20:54:42.952] flip #600: dstRect=NULL(full) filter=2 pp=1280x960 borderless=0
+[20:54:42.952] adapt: -> (0,0,1280,960) 1280x960 filter=101 (was 2)
+[20:54:43.218] resize: client 2560x1377 stable; backbuffer 1280x960 -> 2560x1377
+[20:54:43.218] compat: force-released 2 foreign device resources
+[20:54:43.219] resize: surface recreation staging=1 native=1
+[20:54:43.220] shaders: pipeline ready (filter=2 sharp=1 xbr=1)
+[20:54:43.220] surfaces: native 640x480, backbuffer 2560x1377 (src 10f8d360 dst 10f8de00)
+[20:54:43.220] flip #617: dstRect=NULL(full) filter=2 pp=2560x1377 borderless=0 <changed>
+[20:54:43.220] flip #617: native/device pointer changed (post-reset recreation)
+[20:54:43.220] adapt: -> (362,0,2198,1377) 1836x1377 filter=101 (was 2)
+[20:54:49.556] resize: client 640x480 stable; backbuffer 2560x1377 -> 1280x960
+[20:54:49.556] compat: force-released 2 foreign device resources
+[20:54:49.558] resize: surface recreation staging=1 native=1
+[20:54:49.558] shaders: pipeline ready (filter=2 sharp=1 xbr=1)
+[20:54:49.559] surfaces: native 640x480, backbuffer 1280x960 (src 10f8de00 dst 10f8d680)
+[20:54:49.559] flip #1022: dstRect=NULL(full) filter=2 pp=1280x960 borderless=0 <changed>
+[20:54:49.559] flip #1022: native/device pointer changed (post-reset recreation)
+[20:54:49.559] adapt: -> (0,0,1280,960) 1280x960 filter=101 (was 2)
+[20:54:52.357] flip #1200: dstRect=NULL(full) filter=2 pp=1280x960 borderless=0
+[20:54:52.357] adapt: -> (0,0,1280,960) 1280x960 filter=101 (was 2)

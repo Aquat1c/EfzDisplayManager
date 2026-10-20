@@ -433,7 +433,27 @@ The v0.2.0 `stage-a-observe` module ran inside the game on 2026-10-20
   runtime geometry (dstRect letterbox values). The observation hook logs all
   of these automatically when they occur.
 
-## 12. Stage A implementation record (v0.2.0 → v0.7.0, 2026-10-20)
+## 12. Stage A implementation record (v0.2.0 → v0.7.1, 2026-10-20)
+
+**v0.7.1 entry-hook length fix (user-reported: dead Alt+Enter + stretched
+maximize on the 2020-gen copies):** the profile struct declared
+`entryBytes[7]` (J-generation prologue length) while the 2020-gen prologue
+is 6 bytes - the zero-filled 7th compare byte failed the byte check, so the
+Flip-entry hook silently never installed on ALL five 2020-gen builds. With
+no entry hook there was no resize follow (maximize fell back to the DWM
+stretch) and no hotkey poll while the wrapper's own Alt+Enter had been
+neutralized - both user symptoms. Fix: explicit `entryByteCount` per
+profile (6 vs 7). Live-verified on F:\EFZ - Copy WITH efz-training-mode +
+efz_netplay_mod loaded: entry hook installs; borderless enter/exit clean;
+compat layer force-released 2 foreign resources per reset (both mods!) and
+every Reset succeeded; maximize reset to 2560x1377 letterboxed, restore
+returned to Revival's 1280x960. Evidence:
+[evidence/runtime-coexist-maximize.txt](evidence/runtime-coexist-maximize.txt)
+- the first fully-modded coexistence verification (observation + xBR + all
+reset paths). The coexist log line now only claims "disabled" when the
+compat layer is genuinely unavailable.
+
+The sections below describe earlier versions as implemented at the time.
 
 **v0.7.0 shader scaling port + reset compatibility layer** (creator
 permission granted; ported from SokuDisplayManager MIT source):
