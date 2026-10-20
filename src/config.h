@@ -20,6 +20,16 @@ struct Config {
                                // value) | Point (override) (default Linear)
     unsigned long backgroundColor;  // [Display] BackgroundColor RRGGBB hex
                                     // (default 000000)
+    int resizeBackBuffer;           // [Display] ResizeBackBuffer (default 1):
+                                    // make the backbuffer follow window
+                                    // maximize/restore/resize; Revival's
+                                    // EfzRevival.ini [Global] sizes stay
+                                    // authoritative at the original size
+    int windowAdjustStyle;          // [Display] WindowAdjustStyle (default 1):
+                                    // add WS_THICKFRAME|WS_MAXIMIZEBOX to the
+                                    // wrapper's window (created fixed-size
+                                    // with a disabled maximize button),
+                                    // preserving the client area
 };
 
 // Reads DisplayManager.ini next to the given module; missing file means

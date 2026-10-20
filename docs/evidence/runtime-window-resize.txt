@@ -1,0 +1,59 @@
+[18:10:59.874] EFZ DisplayManager v0.4.0 (window-resize): attached, deferring to bootstrap worker
+[18:10:59.877] admission: DDRAW.dll loaded at 72720000 (D:\EFZ_FULLPACK\DDRAW.dll)
+[18:10:59.883] admission: file SHA-256: 0e072342d87d240e18969bc3663032e0e370eaba24d1fbb8e6c1f6216ad9f603
+[18:10:59.883] admission: profile accepted: renderer-split Revival 1.02j (2026-08-02) (PE timestamp 6a6f1795)
+[18:11:00.134] bootstrap: wrapper device 0d577900, native surface 0d5ca2c0
+[18:11:00.367] window: style 14ca0000 -> 14cf0000 (sizable + maximize enabled, client preserved)
+[18:11:00.400] detour: installed 6-byte hook at 727479c0 (target 73712550)
+[18:11:00.405] surfaces: native 640x480, backbuffer 1280x960 (src 0d5ca2c0 dst 0d5c9aa0)
+[18:11:00.405] flip #1: dstRect=NULL(full) filter=2 pp=1280x960 borderless=0 <changed>
+[18:11:00.405] adapt: -> (0,0,1280,960) 1280x960 filter=2 (was 2)
+[18:11:00.422] flip #2: dstRect=NULL(full) filter=2 pp=1280x960 borderless=0
+[18:11:00.422] adapt: -> (0,0,1280,960) 1280x960 filter=2 (was 2)
+[18:11:00.432] detour: installed 7-byte entry hook at 72747860 (trampoline 73716000)
+[18:11:00.432] bootstrap: hook active (observe + adapt: mode=0 scale=0 custom=640x480 filter=0 bg=000000)
+[18:11:00.437] flip #3: dstRect=NULL(full) filter=2 pp=1280x960 borderless=0
+[18:11:00.437] adapt: -> (0,0,1280,960) 1280x960 filter=2 (was 2)
+[18:11:00.452] flip #4: dstRect=NULL(full) filter=2 pp=1280x960 borderless=0
+[18:11:00.452] adapt: -> (0,0,1280,960) 1280x960 filter=2 (was 2)
+[18:11:00.468] flip #5: dstRect=NULL(full) filter=2 pp=1280x960 borderless=0
+[18:11:00.468] adapt: -> (0,0,1280,960) 1280x960 filter=2 (was 2)
+[18:11:00.483] flip #6: dstRect=NULL(full) filter=2 pp=1280x960 borderless=0
+[18:11:00.483] adapt: -> (0,0,1280,960) 1280x960 filter=2 (was 2)
+[18:11:02.519] resize: client 2560x1377 stable; backbuffer 1280x960 -> 2560x1377
+[18:11:02.521] resize: Reset hr=00000000
+[18:11:02.521] surfaces: native 640x480, backbuffer 2560x1377 (src 14d2a7e0 dst 14d2ad80)
+[18:11:02.521] flip #132: dstRect=NULL(full) filter=2 pp=2560x1377 borderless=0 <changed>
+[18:11:02.521] flip #132: native/device pointer changed (post-reset recreation)
+[18:11:02.521] adapt: -> (362,0,2198,1377) 1836x1377 filter=2 (was 2)
+[18:11:04.459] resize: client 640x480 stable; backbuffer 2560x1377 -> 1280x960
+[18:11:04.461] resize: Reset hr=00000000
+[18:11:04.461] surfaces: native 640x480, backbuffer 1280x960 (src 14d2a240 dst 14d2ad80)
+[18:11:04.461] flip #254: dstRect=NULL(full) filter=2 pp=1280x960 borderless=0 <changed>
+[18:11:04.461] flip #254: native/device pointer changed (post-reset recreation)
+[18:11:04.461] adapt: -> (0,0,1280,960) 1280x960 filter=2 (was 2)
+[18:11:06.196] resize: client 1241x787 stable; backbuffer 1280x960 -> 1241x787
+[18:11:06.198] resize: Reset hr=00000000
+[18:11:06.198] surfaces: native 640x480, backbuffer 1241x787 (src 14d2a920 dst 14d2a7e0)
+[18:11:06.198] flip #346: dstRect=NULL(full) filter=2 pp=1241x787 borderless=0 <changed>
+[18:11:06.198] flip #346: native/device pointer changed (post-reset recreation)
+[18:11:06.198] adapt: -> (96,0,1145,787) 1049x787 filter=2 (was 2)
+[18:11:07.949] resize: client 1654x1076 stable; backbuffer 1241x787 -> 1654x1076
+[18:11:07.952] resize: Reset hr=00000000
+[18:11:07.952] surfaces: native 640x480, backbuffer 1654x1076 (src 14d2a920 dst 14d2ad80)
+[18:11:07.952] flip #449: dstRect=NULL(full) filter=2 pp=1654x1076 borderless=0 <changed>
+[18:11:07.952] adapt: -> (109,0,1544,1076) 1435x1076 filter=2 (was 2)
+[18:11:08.543] resize: client 2560x1377 stable; backbuffer 1654x1076 -> 2560x1377
+[18:11:08.545] resize: Reset hr=00000000
+[18:11:08.545] surfaces: native 640x480, backbuffer 2560x1377 (src 14d2a920 dst 14d2ab00)
+[18:11:08.545] flip #487: dstRect=NULL(full) filter=2 pp=2560x1377 borderless=0 <changed>
+[18:11:08.545] adapt: -> (362,0,2198,1377) 1836x1377 filter=2 (was 2)
+[18:11:10.311] flip #600: dstRect=NULL(full) filter=2 pp=2560x1377 borderless=0
+[18:11:10.311] adapt: -> (362,0,2198,1377) 1836x1377 filter=2 (was 2)
+[18:11:14.647] resize: client 1654x1076 stable; backbuffer 2560x1377 -> 1654x1076
+[18:11:14.649] resize: Reset hr=00000000
+[18:11:14.650] surfaces: native 640x480, backbuffer 1654x1076 (src 14d2a920 dst 14d2a240)
+[18:11:14.650] flip #877: dstRect=NULL(full) filter=2 pp=1654x1076 borderless=0 <changed>
+[18:11:14.650] adapt: -> (109,0,1544,1076) 1435x1076 filter=2 (was 2)
+[18:11:20.202] flip #1200: dstRect=NULL(full) filter=2 pp=1654x1076 borderless=0
+[18:11:20.202] adapt: -> (109,0,1544,1076) 1435x1076 filter=2 (was 2)

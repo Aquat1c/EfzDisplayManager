@@ -13,6 +13,7 @@
 #include "hook_flip.h"
 #include "logging.h"
 #include "profiles.h"
+#include "hook_flip.h"
 #include "sha256.h"
 #include "version.h"
 
@@ -117,6 +118,33 @@ DWORD WINAPI bootstrapThread(void* param) {
     DM_LOG("bootstrap: wrapper device %p, native surface %p",
            device, *reinterpret_cast<void**>(base + profile->nativeSurfaceRva));
 
+    // 3b. Make the window sizable and maximizable. The wrapper creates it as
+    // WS_VISIBLE|WS_CAPTION|WS_SYSMENU|WS_MINIMIZEBOX (fixed-size, grayed
+    // maximize button); add WS_THICKFRAME|WS_MAXIMIZEBOX while preserving the
+    // client area, before hooks install so the resize baseline captures the
+    // adjusted size.
+    if (cfg.windowAdjustStyle) {
+        HWND hwnd = *reinterpret_cast<HWND*>(base + profile->hwndRva);
+        if (hwnd) {
+            LONG_PTR style = GetWindowLongPtrA(hwnd, GWL_STYLE);
+            LONG_PTR want = style | WS_THICKFRAME | WS_MAXIMIZEBOX;
+            if (want != style) {
+                RECT rc;
+                GetClientRect(hwnd, &rc);
+                SetWindowLongPtrA(hwnd, GWL_STYLE, want);
+                AdjustWindowRect(&rc, static_cast<DWORD>(want), FALSE);
+                SetWindowPos(hwnd, nullptr, 0, 0, rc.right - rc.left,
+                             rc.bottom - rc.top,
+                             SWP_NOMOVE | SWP_NOZORDER | SWP_NOOWNERZORDER |
+                                 SWP_FRAMECHANGED | SWP_NOACTIVATE);
+                DM_LOG("window: style %08lx -> %08lx (sizable + maximize "
+                       "enabled, client preserved)",
+                       static_cast<unsigned long>(style),
+                       static_cast<unsigned long>(want));
+            }
+        }
+    }
+
     // 4. Install the observation/adaptation hook.
     HookConfig hc;
     hc.logFirst = cfg.logFirst;
@@ -132,6 +160,25 @@ DWORD WINAPI bootstrapThread(void* param) {
         return 0;
     }
     g_hookSite = site;
+
+    // Window-resize support: a Flip-entry detour is the only between-frames
+    // point where a voluntary reset is safe (no backbuffer reference held,
+    // and every surface pointer is reloaded from globals afterward, so the
+    // resizing frame renders normally at the new size).
+    setResizeConfig(cfg.resizeBackBuffer != 0);
+    if (cfg.resizeBackBuffer) {
+        prepareEntryTrampoline();
+        unsigned char* entrySite = base + profile->flipEntryRva;
+        if (!installEntryDetour(entrySite, profile->entryBytes,
+                                sizeof(profile->entryBytes),
+                                reinterpret_cast<const void*>(&dmFlipEntryShim),
+                                entryTrampolineBuffer(),
+                                entryTrampolineCapacity())) {
+            DM_LOG("bootstrap: entry hook failed; resize disabled "
+                   "(final-blit hook stays active)");
+            setResizeConfig(false);
+        }
+    }
     DM_LOG("bootstrap: hook active (observe + adapt: mode=%d scale=%d "
            "custom=%dx%d filter=%lu bg=%06lx)",
            int(cfg.mode), cfg.integerScale, cfg.customWidth, cfg.customHeight,

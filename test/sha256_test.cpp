@@ -8,6 +8,7 @@
 
 #include "../src/format.h"
 #include "../src/geometry.h"
+#include "../src/resize.h"
 #include "../src/sha256.h"
 
 static int failures = 0;
@@ -62,6 +63,72 @@ static void runGeometryTests() {
         std::printf("FAIL geo center-int1: (%ld,%ld)\n", l, t);
         ++failures;
     }
+}
+
+static void runResizeTests() {
+    using dm::ResizeAction;
+    dm::ResizeState st;
+    dm::ResizeInput in;
+    long w = 0, h = 0;
+    int resets = 0;
+
+    // Fresh state: capture, no reset. (Revival: 640x480 window, 1280x960 bb.)
+    in = {640, 480, 1280, 960, 0};
+    if (dm::evaluateResize(&st, in, &w, &h) == ResizeAction::None)
+        std::printf("PASS rz init-capture\n");
+    else { std::printf("FAIL rz init-capture\n"); ++failures; }
+
+    // Steady state: quiet.
+    bool quiet = true;
+    for (int i = 0; i < 30; ++i) {
+        if (dm::evaluateResize(&st, in, &w, &h) != ResizeAction::None) quiet = false;
+    }
+    if (quiet) std::printf("PASS rz steady-quiet\n");
+    else { std::printf("FAIL rz steady-quiet\n"); ++failures; }
+
+    // Maximize to 1920x1040: needs the stability window, then resets to 1:1.
+    in = {1920, 1040, 1280, 960, 0};
+    bool sawPending = false; bool reset = false;
+    for (int i = 0; i < 12; ++i) {
+        if (dm::evaluateResize(&st, in, &w, &h) == ResizeAction::Reset) {
+            reset = true; ++resets; break;
+        }
+        sawPending = true;
+    }
+    if (reset && w == 1920 && h == 1040)
+        std::printf("PASS rz maximize-1to1 (needed stability window: %d)\n", int(sawPending));
+    else { std::printf("FAIL rz maximize-1to1: reset=%d %ldx%ld\n", int(reset), w, h); ++failures; }
+
+    // Cooldown suppresses immediately-following churn.
+    in = {1600, 900, 1920, 1040, 0};
+    bool suppressed = true;
+    for (int i = 0; i < dm::resizeCooldownFlips(); ++i) {
+        if (dm::evaluateResize(&st, in, &w, &h) != ResizeAction::None) suppressed = false;
+    }
+    if (suppressed) std::printf("PASS rz cooldown\n");
+    else { std::printf("FAIL rz cooldown\n"); ++failures; }
+
+    // Restore to the original 640x480 client: backbuffer returns to Revival's
+    // configured 1280x960 (not 1:1 640x480).
+    in = {640, 480, 1600, 900, 0};
+    for (int i = 0; i < 40; ++i) {
+        if (dm::evaluateResize(&st, in, &w, &h) == ResizeAction::Reset) { ++resets; break; }
+    }
+    if (w == 1280 && h == 960)
+        std::printf("PASS rz restore-revival-config\n");
+    else { std::printf("FAIL rz restore-revival-config: %ldx%ld\n", w, h); ++failures; }
+
+    // Borderless and minimized windows never trigger.
+    in = {1920, 1040, 1280, 960, 1};
+    bool none = true;
+    for (int i = 0; i < 20; ++i)
+        if (dm::evaluateResize(&st, in, &w, &h) != ResizeAction::None) none = false;
+    in = {0, 0, 1280, 960, 0};
+    for (int i = 0; i < 20; ++i)
+        if (dm::evaluateResize(&st, in, &w, &h) != ResizeAction::None) none = false;
+    if (none) std::printf("PASS rz borderless-minimize-quiet\n");
+    else { std::printf("FAIL rz borderless-minimize-quiet\n"); ++failures; }
+    (void)resets;
 }
 
 static void expectFormat(const char* label, const char* expected, const char* fmt, ...) {
@@ -203,6 +270,7 @@ int main(int argc, char** argv) {
     expect("56x'a", buf, 56,
            "b35439a4ac6f0948b6d6f9e3c6af0f5f590ce20f1bde7090ef7970686ec6738a");
 
+    runResizeTests();
     runGeometryTests();
     runFormatTests();
 

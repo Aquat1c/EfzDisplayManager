@@ -42,6 +42,8 @@ Config loadConfig(HMODULE module) {
     c.customHeight = 480;
     c.filter = 0;                  // 0 = keep the wrapper's filter
     c.backgroundColor = 0xFF000000UL;
+    c.resizeBackBuffer = 1;
+    c.windowAdjustStyle = 1;
 
     char path[MAX_PATH];
     if (GetModuleFileNameA(module, path, MAX_PATH) == 0) return c;
@@ -82,6 +84,11 @@ Config loadConfig(HMODULE module) {
     if (lstrcmpiA(text, "Point") == 0) {
         c.filter = 1;  // D3DTEXF_POINT
     }
+
+    c.resizeBackBuffer =
+        GetPrivateProfileIntA("Display", "ResizeBackBuffer", c.resizeBackBuffer, ini);
+    c.windowAdjustStyle =
+        GetPrivateProfileIntA("Display", "WindowAdjustStyle", c.windowAdjustStyle, ini);
 
     GetPrivateProfileStringA("Display", "BackgroundColor", "000000", text,
                              sizeof(text), ini);

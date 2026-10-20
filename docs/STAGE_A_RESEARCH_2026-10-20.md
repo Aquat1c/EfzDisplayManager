@@ -433,7 +433,39 @@ The v0.2.0 `stage-a-observe` module ran inside the game on 2026-10-20
   runtime geometry (dstRect letterbox values). The observation hook logs all
   of these automatically when they occur.
 
-## 12. Stage A implementation record (v0.2.0 → v0.3.0, 2026-10-20)
+## 12. Stage A implementation record (v0.2.0 → v0.4.0, 2026-10-20)
+
+**v0.4.0 `window-resize`:** the window is now sizable and maximizable, and the
+backbuffer follows user-driven size changes while Revival's
+`EfzRevival.ini [Global]` configuration stays authoritative at rest.
+
+- Static findings behind the design: the wrapper creates its window with
+  style `0x10CA0000` (`WS_VISIBLE|WS_CAPTION|WS_SYSMENU|WS_MINIMIZEBOX` —
+  fixed-size, grayed maximize button, at the `CreateWindowExA` call at RVA
+  `0x28957`); the wrapper's only own-reset trigger is a FAILED `Present`
+  (branch at `0x27A04` → reset block `0x27BA0`), and its reset helper
+  (`0x363D0`) dereferences the D3DX font at `+0x74` WITHOUT a null check —
+  a latent wrapper bug (crash at `DDRAW+0x36426`) that fires in direct
+  efz.exe launches where Revival's text render never initializes. The
+  wrapper also caches surface pointers in registers across Flip, so a
+  mid-Flip reset would leave it blitting from freed surfaces - the only
+  safe voluntary-reset point is Flip ENTRY (all pointers reloaded from
+  globals afterward, no backbuffer reference outstanding).
+- Implementation: one-time style patch (`WS_THICKFRAME|WS_MAXIMIZEBOX`,
+  client-preserving via `AdjustWindowRect`, before hooks install so the
+  resize baseline captures the adjusted size); a Flip-entry naked-shim
+  detour with a 7-byte trampoline; a font-safe OWN reset sequence
+  (GetDesc → font OnLostDevice → release/null staging+native → update PP →
+  `IDirect3DDevice9::Reset` → recreate surfaces with captured descs → font
+  OnResetDevice); and a pure, unit-tested resize decision (stability window
+  8 flips, cooldown 30, minimum client 320x240, borderless never triggers,
+  restore-to-original-client ⇒ restore Revival's original backbuffer).
+  Runtime evidence incl. live user drag-resizing:
+  [evidence/runtime-window-resize.txt](evidence/runtime-window-resize.txt)
+  — every reset `hr=00000000`, aspect-correct at every size, Revival's
+  1280x960 backbuffer restored exactly when the window returns to 640x480.
+
+The sections below describe v0.2.0/v0.3.0 as implemented at those versions.
 
 **v0.3.0 `adapt-rect` (same day):** output-geometry adaptation is live and
 runtime-verified. The hook now computes a centered destination rectangle from

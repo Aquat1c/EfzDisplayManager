@@ -29,6 +29,15 @@ void setAdaptConfig(ScaleMode mode, int integerScale, int customWidth,
                     int customHeight, unsigned long filterOverride,
                     unsigned long backgroundColor);
 
+// Window-resize support: arms the Flip-entry resize evaluation.
+void setResizeConfig(bool enabled);
+
+// Trampoline storage for the Flip-entry detour (filled by
+// installEntryDetour before the entry site is patched).
+unsigned char* entryTrampolineBuffer();
+size_t entryTrampolineCapacity();
+void prepareEntryTrampoline();
+
 // Observation state of the final-blit hook, for reporting at shutdown.
 unsigned long hookCallCount();
 
@@ -47,3 +56,10 @@ extern "C" void __stdcall dmFinalStretchHook(IDirect3DDevice9* dev,
                                              unsigned long filter);
 
 }  // namespace dm
+
+// Flip-entry hook (global scope: the naked shim cannot live in a namespace).
+// dmFlipEntryWork evaluates window-size changes and performs a font-safe
+// device reset through the wrapper's own globals when needed; dmFlipEntryShim
+// tail-jumps into the trampoline so Flip's prologue continues normally.
+extern "C" void dmFlipEntryWork();
+extern "C" void dmFlipEntryShim();  // defined __declspec(naked) in hook_flip.cpp

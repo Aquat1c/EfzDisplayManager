@@ -6,10 +6,24 @@
 #include "format.h"
 #include "geometry.h"
 #include "logging.h"
+#include "resize.h"
+
+// Trampoline for the Flip-entry detour: original 7-byte prologue + jmp back.
+extern "C" unsigned char g_entryTrampoline[16] = {0xCC};
+extern "C" void* g_entryTrampolinePtr = nullptr;
 
 namespace dm {
 
 namespace {
+
+bool g_resizeEnabled = false;
+ResizeState g_resizeState;
+
+typedef long (__stdcall* VtMethodFn)(void* self);
+
+// D3DX font vtable slots used around a device reset (established from the
+// wrapper's own reset helper in the static research).
+enum { kFontOnLostDevice = 16, kFontOnResetDevice = 17 };
 
 struct AdaptConfig {
     bool active;
@@ -74,8 +88,128 @@ void setAdaptConfig(ScaleMode mode, int integerScale, int customWidth,
     g_obs.adapt.backgroundColor = backgroundColor;
 }
 
+void setResizeConfig(bool enabled) {
+    g_resizeEnabled = enabled;
+}
+
+unsigned char* entryTrampolineBuffer() {
+    return g_entryTrampoline;
+}
+
+size_t entryTrampolineCapacity() {
+    return sizeof(g_entryTrampoline);
+}
+
+void prepareEntryTrampoline() {
+    g_entryTrampolinePtr = g_entryTrampoline;
+}
+
 unsigned long hookCallCount() {
     return g_obs.calls;
+}
+
+extern "C" void dmFlipEntryWork() {
+    if (!g_resizeEnabled || !g_obs.base || !g_obs.profile) return;
+    HWND hwnd = reinterpret_cast<HWND>(
+        *reinterpret_cast<void**>(g_obs.base + g_obs.profile->hwndRva));
+    RECT rc;
+    if (!hwnd || !GetClientRect(hwnd, &rc)) return;
+
+    ResizeInput in;
+    in.clientW = rc.right - rc.left;
+    in.clientH = rc.bottom - rc.top;
+    in.bbW = long(readU32(g_obs.base, g_obs.profile->ppRva));
+    in.bbH = long(readU32(g_obs.base, g_obs.profile->ppRva + 4));
+    in.borderless = *reinterpret_cast<unsigned char*>(
+        g_obs.base + g_obs.profile->borderlessRva);
+    long newW = 0, newH = 0;
+    if (evaluateResize(&g_resizeState, in, &newW, &newH) != ResizeAction::Reset) {
+        return;
+    }
+    DM_LOG("resize: client %ldx%ld stable; backbuffer %ldx%ld -> %ldx%ld",
+           in.clientW, in.clientH, in.bbW, in.bbH, newW, newH);
+
+    // Own font-safe reset sequence (the wrapper's helper dereferences the
+    // font at +0x74 without a null check and crashes in direct efz.exe
+    // launches where Revival's text render never initialized).
+    IDirect3DDevice9* dev = *reinterpret_cast<IDirect3DDevice9**>(
+        g_obs.base + g_obs.profile->deviceRva);
+    void* font = *reinterpret_cast<void**>(g_obs.base + g_obs.profile->fontRva);
+    IDirect3DSurface9* staging = *reinterpret_cast<IDirect3DSurface9**>(
+        g_obs.base + g_obs.profile->rendererObjectRva);
+    IDirect3DSurface9* native = *reinterpret_cast<IDirect3DSurface9**>(
+        g_obs.base + g_obs.profile->nativeSurfaceRva);
+    if (!dev || !staging || !native) {
+        DM_LOG("resize: device/surfaces missing; skipping reset");
+        return;
+    }
+
+    // Capture the surface descriptions before releasing anything so the
+    // recreation matches the wrapper's formats exactly.
+    D3DSURFACE_DESC dS = {}, dN = {};
+    if (FAILED(staging->GetDesc(&dS)) || FAILED(native->GetDesc(&dN))) {
+        DM_LOG("resize: GetDesc failed; skipping reset");
+        return;
+    }
+
+    void*** fontVt = reinterpret_cast<void***>(font);
+    if (font && fontVt) {
+        reinterpret_cast<VtMethodFn>(fontVt[0][kFontOnLostDevice])(font);
+    }
+    staging->Release();
+    native->Release();
+    *reinterpret_cast<IDirect3DSurface9**>(g_obs.base +
+                                           g_obs.profile->rendererObjectRva) = nullptr;
+    *reinterpret_cast<IDirect3DSurface9**>(g_obs.base +
+                                           g_obs.profile->nativeSurfaceRva) = nullptr;
+
+    *reinterpret_cast<long*>(g_obs.base + g_obs.profile->ppRva) = newW;
+    *reinterpret_cast<long*>(g_obs.base + g_obs.profile->ppRva + 4) = newH;
+    HRESULT hr = dev->Reset(reinterpret_cast<D3DPRESENT_PARAMETERS*>(
+        g_obs.base + g_obs.profile->ppRva));
+    DM_LOG("resize: Reset hr=%08lx", long(hr));
+
+    IDirect3DSurface9* s = nullptr;
+    IDirect3DSurface9* n = nullptr;
+    if (dS.Usage & D3DUSAGE_RENDERTARGET) {
+        dev->CreateRenderTarget(dS.Width, dS.Height, dS.Format,
+                                dS.MultiSampleType, dS.MultiSampleQuality,
+                                TRUE, &s, nullptr);
+    } else {
+        dev->CreateOffscreenPlainSurface(dS.Width, dS.Height, dS.Format,
+                                         dS.Pool, &s, nullptr);
+    }
+    if (dN.Usage & D3DUSAGE_RENDERTARGET) {
+        dev->CreateRenderTarget(dN.Width, dN.Height, dN.Format,
+                                dN.MultiSampleType, dN.MultiSampleQuality,
+                                TRUE, &n, nullptr);
+    } else {
+        dev->CreateOffscreenPlainSurface(dN.Width, dN.Height, dN.Format,
+                                         dN.Pool, &n, nullptr);
+    }
+    if (s) {
+        *reinterpret_cast<IDirect3DSurface9**>(
+            g_obs.base + g_obs.profile->rendererObjectRva) = s;
+    }
+    if (n) {
+        *reinterpret_cast<IDirect3DSurface9**>(
+            g_obs.base + g_obs.profile->nativeSurfaceRva) = n;
+    }
+    if (!s || !n) {
+        DM_LOG("resize: surface recreation incomplete (staging=%d native=%d)",
+               s ? 1 : 0, n ? 1 : 0);
+    }
+    if (font && fontVt) {
+        reinterpret_cast<VtMethodFn>(fontVt[0][kFontOnResetDevice])(font);
+    }
+    g_obs.haveDescs = false;
+}
+
+extern "C" __declspec(naked) void dmFlipEntryShim() {
+    __asm {
+        call dmFlipEntryWork
+        jmp dword ptr [g_entryTrampolinePtr]
+    }
 }
 
 extern "C" void __stdcall dmFinalStretchHook(IDirect3DDevice9* dev,

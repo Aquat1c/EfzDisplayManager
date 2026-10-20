@@ -15,6 +15,7 @@ conversion, timer, input, and Revival session behavior in place.
 | Stage A research (anchors verified, contracts mapped) | Complete — see [docs/STAGE_A_RESEARCH_2026-10-20.md](docs/STAGE_A_RESEARCH_2026-10-20.md) |
 | v0.2.0 observation | **Runtime-verified**: hash-pinned admission (both 1.02j Ddraws), forward-only hook at the wrapper's final StretchRect, ~3600 flips observed in-game |
 | v0.3.0 output adaptation (aspect/integer/custom geometry, Point filter, border fill) | **Implemented and runtime-verified**: defaults reproduce native output exactly; IntegerScale=1 + Point produced a centered 640x480 rect with borders, stable in-game |
+| v0.4.0 window support (sizable+maximizable window, backbuffer follows maximize/restore/drag) | **Implemented and runtime-verified**: every reset S_OK, aspect-correct at all sizes, Revival's EfzRevival.ini [Global] backbuffer restored exactly at the original window size |
 | In-game full qualification matrix | Not started |
 
 Current code state: output adaptation module (stage `adapt-rect`). It loads,
