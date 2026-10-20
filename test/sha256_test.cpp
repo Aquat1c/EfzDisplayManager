@@ -4,11 +4,11 @@
 
 #include <cstdarg>
 #include <cstdio>
+#include <cstdint>
 #include <cstring>
 
 #include "../src/format.h"
 #include "../src/fullscreen.h"
-#include "../src/profiles.h"
 #include "../src/geometry.h"
 #include "../src/resize.h"
 #include "../src/sha256.h"
@@ -135,19 +135,21 @@ static void runResizeTests() {
 
 
 static void runFullscreenTests() {
-    // Build a fake windowed D3DPRESENT_PARAMETERS: 1280x960, swap COPY(0),
-    // windowed TRUE, interval default (0 = unspecified/IMMEDIATE-ish).
+    // Build a fake x86 D3DPRESENT_PARAMETERS: 1280x960, swap COPY (3),
+    // windowed TRUE, interval DEFAULT (0). IMMEDIATE is 0x80000000.
     unsigned char pp[dm::kPp_Size];
     memset(pp, 0, sizeof(pp));
-    auto w32 = [](unsigned char* p, int off, unsigned long v) {
-        memcpy(p + off, &v, 4);
+    auto w32 = [](unsigned char* p, int off, uint32_t v) {
+        std::memcpy(p + off, &v, sizeof(v));
     };
     auto r32 = [](const unsigned char* p, int off) {
-        unsigned long v; memcpy(&v, p + off, 4); return v;
+        uint32_t v = 0;
+        std::memcpy(&v, p + off, sizeof(v));
+        return v;
     };
     w32(pp, dm::kPp_BackBufferWidth, 1280);
     w32(pp, dm::kPp_BackBufferHeight, 960);
-    w32(pp, dm::kPp_SwapEffect, 0);
+    w32(pp, dm::kPp_SwapEffect, 3);
     w32(pp, dm::kPp_Windowed, 1);
 
     unsigned char saved[dm::kPp_Size];
@@ -161,7 +163,7 @@ static void runFullscreenTests() {
               r32(pp, dm::kPp_Windowed) == 0 &&
               r32(pp, dm::kPp_RefreshRate) == 144 &&
               r32(pp, dm::kPp_BackBufferFormat) == 22 &&
-              r32(pp, dm::kPp_PresentationInterval) == 0;  // IMMEDIATE
+              r32(pp, dm::kPp_PresentationInterval) == 0x80000000u;  // IMMEDIATE
     if (ok) std::printf("PASS fs enter-exclusive fields\n");
     else { std::printf("FAIL fs enter-exclusive fields\n"); ++failures; }
 
@@ -170,45 +172,18 @@ static void runFullscreenTests() {
     dm::ppApplyVSync(pp, -1);
     ok = ok && r32(pp, dm::kPp_PresentationInterval) == 1;  // -1 keeps
     dm::ppApplyVSync(pp, 0);
-    ok = ok && r32(pp, dm::kPp_PresentationInterval) == 0;
+    ok = ok && r32(pp, dm::kPp_PresentationInterval) == 0x80000000u;
     if (ok) std::printf("PASS fs vsync choices\n");
     else { std::printf("FAIL fs vsync choices\n"); ++failures; }
 
     dm::ppRestoreWindowed(pp, saved);
     ok = dm::ppIsWindowed(pp) && dm::ppWidth(pp) == 1280 &&
-         dm::ppHeight(pp) == 960 && r32(pp, dm::kPp_SwapEffect) == 0;
+         dm::ppHeight(pp) == 960 && r32(pp, dm::kPp_SwapEffect) == 3 &&
+         std::memcmp(pp, saved, sizeof(pp)) == 0;
     if (ok) std::printf("PASS fs restore-windowed roundtrip\n");
     else { std::printf("FAIL fs restore-windowed roundtrip\n"); ++failures; }
 }
 
-
-static void runProfileTests() {
-    struct Case {
-        const char* path;
-        const dm::DdrawProfile& (*fn)();
-    };
-    Case cases[] = {
-        {"F:\\EFZ - Copy\\DDRAW.dll", &dm::rev2020Profile},
-        {"D:\\EFZ + Reviva 1.02f\\DDRAW.dll", &dm::rev102fProfile},
-        {"D:\\EFZ+Revival 1.02g\\DDRAW.dll", &dm::rev102gProfile},
-        {"D:\\EFZ + Revival 1.02h\\DDRAW.dll", &dm::rev102hProfile},
-        {"F:\\EFZ + Revival 1.02i\\DDRAW.dll", &dm::rev102iProfile},
-    };
-    for (int ci = 0; ci < 5; ++ci) {
-        unsigned char h[32];
-        if (!dm::sha256File(cases[ci].path, h)) {
-            std::printf("FAIL profile %s: unreadable\n", cases[ci].path);
-            ++failures;
-            continue;
-        }
-        const dm::DdrawProfile& p = cases[ci].fn();
-        bool ok = true;
-        for (int i = 0; i < 32; ++i)
-            if (h[i] != p.ddrawSha256[i]) { ok = false; break; }
-        if (ok) std::printf("PASS profile %s\n", p.name);
-        else { std::printf("FAIL profile %s hash mismatch\n", p.name); ++failures; }
-    }
-}
 
 static void expectFormat(const char* label, const char* expected, const char* fmt, ...) {
     char out[512];
@@ -247,22 +222,11 @@ static void runFormatTests() {
                  "borderless=0 <changed>",
                  "flip #%u: src=[%s] dst=[%s] dstRect=%s filter=%lu pp=%lux%lu "
                  "borderless=%lu%s",
-                 1ul, srcDesc, dstDesc, "NULL(full)", 2ul, 1920ul, 1080ul, 0ul,
+                 1u, srcDesc, dstDesc, "NULL(full)", 2ul, 1920ul, 1080ul, 0ul,
                  " <changed>");
     expectFormat("ptrchain", "native 00112233->00445566",
                  "native %p->%p", (void*)0x112233, (void*)0x445566);
-    // Long strings and truncation behavior - probe the length threshold.
-    {
-        char tiny[2] = "x";
-        char dst[16];
-        std::printf("step: manual va_list route\n");
-        va_list manual;
-        va_start(manual, tiny);  // dummy: prove va machinery works here
-        va_end(manual);
-        char* tinyPtr = tiny;
-        dm::formatString(dst, sizeof(dst), "%s", tinyPtr);  // variadic wrapper
-        std::printf("step: wrapper route ok: %s\n", dst);
-    }
+    // Validate the variadic wrapper and truncation at each buffer boundary.
     static const unsigned kProbes[] = {1u, 5u, 10u, 14u, 15u, 16u, 17u, 18u,
                                        20u, 31u, 32u, 33u, 40u, 100u, 599u};
     for (unsigned pi = 0; pi < sizeof(kProbes) / sizeof(kProbes[0]); ++pi) {
@@ -271,9 +235,13 @@ static void runFormatTests() {
         std::memset(probeBuf, 'x', probe);
         probeBuf[probe] = '\0';
         char dst[16];
-        std::printf("step: probe len=%u\n", probe);
         int n = dm::formatString(dst, sizeof(dst), "%s", probeBuf);
-        std::printf("step: probe len=%u ok n=%d\n", probe, n);
+        const size_t kept = probe < sizeof(dst) - 1 ? probe : sizeof(dst) - 1;
+        if (n != static_cast<int>(probe) || std::strlen(dst) != kept ||
+            std::memcmp(dst, probeBuf, kept) != 0) {
+            std::printf("FAIL fmt truncation boundary %u: n=%d\n", probe, n);
+            ++failures;
+        }
     }
     char big[600];
     std::memset(big, 'x', sizeof(big) - 1);
@@ -308,29 +276,8 @@ static void expect(const char* label, const char* input, size_t len,
     }
 }
 
-int main(int argc, char** argv) {
+int main() {
     std::setvbuf(stdout, nullptr, _IONBF, 0);
-    if (argc == 3) {
-        // File-pin mode: dm_sha256_test <file> <expected-hex> - validates the
-        // file-hashing path end to end against ground truth before the
-        // embedded profile pins are trusted at runtime.
-        unsigned char out[32];
-        if (!dm::sha256File(argv[1], out)) {
-            std::printf("FAIL cannot read %s\n", argv[1]);
-            return 1;
-        }
-        char hex[65];
-        for (int i = 0; i < 32; ++i) {
-            std::sprintf(hex + 2 * i, "%02x", out[i]);
-        }
-        hex[64] = '\0';
-        if (std::strcmp(hex, argv[2]) == 0) {
-            std::printf("PASS file %s\n", argv[1]);
-            return 0;
-        }
-        std::printf("FAIL file %s: got %s want %s\n", argv[1], hex, argv[2]);
-        return 1;
-    }
 
     expect("empty", "", 0,
            "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
@@ -349,7 +296,6 @@ int main(int argc, char** argv) {
     expect("56x'a", buf, 56,
            "b35439a4ac6f0948b6d6f9e3c6af0f5f590ce20f1bde7090ef7970686ec6738a");
 
-    runProfileTests();
     runFullscreenTests();
     runResizeTests();
     runGeometryTests();

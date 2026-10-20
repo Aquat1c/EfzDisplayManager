@@ -30,7 +30,7 @@ void ppEnterExclusive(unsigned char* pp, const DisplayMode& mode, uintptr_t hwnd
     writeU32At(pp, kPp_DeviceWindow, uint32_t(hwnd));
     writeU32At(pp, kPp_Windowed, 0);  // FALSE: exclusive fullscreen
     writeU32At(pp, kPp_RefreshRate, uint32_t(mode.refresh));
-    writeU32At(pp, kPp_PresentationInterval, 0);  // IMMEDIATE: low latency
+    writeU32At(pp, kPp_PresentationInterval, 0x80000000u);  // D3DPRESENT_INTERVAL_IMMEDIATE
 }
 
 void ppRestoreWindowed(unsigned char* pp, const unsigned char* saved) {
@@ -39,7 +39,7 @@ void ppRestoreWindowed(unsigned char* pp, const unsigned char* saved) {
 
 void ppApplyVSync(unsigned char* pp, long vsync) {
     if (vsync == 0) {
-        writeU32At(pp, kPp_PresentationInterval, 0);  // IMMEDIATE
+        writeU32At(pp, kPp_PresentationInterval, 0x80000000u);  // IMMEDIATE
     } else if (vsync == 1) {
         writeU32At(pp, kPp_PresentationInterval, 1);  // ONE
     }

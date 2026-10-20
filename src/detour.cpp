@@ -1,230 +1,137 @@
 #include "detour.h"
-
 #include <windows.h>
 #include <tlhelp32.h>
-
 #include <cstdint>
-
+#include <cstring>
 #include "logging.h"
 
 namespace dm {
-
 namespace {
-
 struct PatchState {
-    unsigned char* site = nullptr;
-    unsigned char original[16] = {};
-    size_t len = 0;
+    unsigned char* site;
+    unsigned char original[16];
+    unsigned char replacement[16];
+    size_t length;
 };
-PatchState g_patches[kMaxDetourSites];
-
-struct SuspendedThreads {
-    HANDLE handles[MAXIMUM_WAIT_OBJECTS];
-    int count = 0;
-};
-
-// Suspends every thread of the current process except the calling one.
-// No thread may run while a multi-byte instruction is being replaced.
-bool suspendAllOtherThreads(SuspendedThreads* out) {
-    HANDLE snap = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, GetCurrentProcessId());
-    if (snap == INVALID_HANDLE_VALUE) return false;
-
-    DWORD me = GetCurrentThreadId();
-    THREADENTRY32 te;
-    te.dwSize = sizeof(te);
-    BOOL ok = Thread32First(snap, &te);
-    while (ok) {
-        if (te.th32OwnerProcessID == GetCurrentProcessId() &&
-            te.th32ThreadID != me && out->count < MAXIMUM_WAIT_OBJECTS) {
-            HANDLE h = OpenThread(THREAD_SUSPEND_RESUME, FALSE, te.th32ThreadID);
-            if (h) {
-                if (SuspendThread(h) != (DWORD)-1) {
-                    out->handles[out->count++] = h;
-                } else {
-                    CloseHandle(h);
-                }
+PatchState g_patches[kMaxDetourSites] = {};
+struct SuspendedThreads { HANDLE handles[MAXIMUM_WAIT_OBJECTS]; int count; };
+void resumeThreads(SuspendedThreads* threads) {
+    for (int i = 0; i < threads->count; ++i) {
+        ResumeThread(threads->handles[i]);
+        CloseHandle(threads->handles[i]);
+    }
+    threads->count = 0;
+}
+bool suspendOtherThreads(SuspendedThreads* threads, unsigned char* site, size_t guardedLength) {
+    HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
+    if (snapshot == INVALID_HANDLE_VALUE) return false;
+    THREADENTRY32 entry = {};
+    entry.dwSize = sizeof(entry);
+    bool safe = true;
+    for (BOOL ok = Thread32First(snapshot, &entry); ok; ok = Thread32Next(snapshot, &entry)) {
+        if (entry.th32OwnerProcessID == GetCurrentProcessId() && entry.th32ThreadID != GetCurrentThreadId()) {
+            if (threads->count == MAXIMUM_WAIT_OBJECTS) { safe = false; break; }
+            HANDLE thread = OpenThread(THREAD_SUSPEND_RESUME | THREAD_GET_CONTEXT, FALSE, entry.th32ThreadID);
+            if (!thread) {
+                if (GetLastError() == ERROR_INVALID_PARAMETER) continue; // thread exited
+                safe = false; break;
             }
+            if (SuspendThread(thread) == static_cast<DWORD>(-1)) { CloseHandle(thread); safe = false; break; }
+            threads->handles[threads->count++] = thread;
+            CONTEXT context = {};
+            context.ContextFlags = CONTEXT_CONTROL;
+            if (!GetThreadContext(thread, &context)) { safe = false; break; }
+            const uintptr_t ip = context.Eip;
+            const uintptr_t first = reinterpret_cast<uintptr_t>(site);
+            // EIP at the first byte can safely see the new branch. A stopped
+            // thread inside overwritten instructions/function must run out first.
+            if (ip > first && ip < first + guardedLength) { safe = false; break; }
         }
-        te.dwSize = sizeof(te);
-        ok = Thread32Next(snap, &te);
+        entry.dwSize = sizeof(entry);
     }
-    CloseHandle(snap);
-    return true;
+    CloseHandle(snapshot);
+    if (!safe) resumeThreads(threads);
+    return safe;
 }
-
-void resumeThreads(SuspendedThreads* st) {
-    for (int i = 0; i < st->count; ++i) {
-        ResumeThread(st->handles[i]);
-        CloseHandle(st->handles[i]);
-    }
-    st->count = 0;
-}
-
 int freeSlot() {
-    for (int i = 0; i < kMaxDetourSites; ++i) {
-        if (g_patches[i].site == nullptr) return i;
-    }
+    for (int i = 0; i < kMaxDetourSites; ++i) if (!g_patches[i].site) return i;
     return -1;
 }
-
-int slotFor(const unsigned char* site) {
-    for (int i = 0; i < kMaxDetourSites; ++i) {
-        if (g_patches[i].site == site) return i;
-    }
-    return -1;
 }
 
-}  // namespace
-
-bool installDetour(unsigned char* site, const unsigned char* expectedBytes,
-                   size_t byteCount, const void* target, bool useCall) {
-    if (byteCount < 5 || byteCount > 16) return false;
-    int slot = slotFor(site);
-    if (slot < 0) slot = freeSlot();
-    if (slot < 0) {
-        DM_LOG("detour: no free hook slot");
-        return false;
-    }
-
-    for (size_t i = 0; i < byteCount; ++i) {
-        if (site[i] != expectedBytes[i]) {
-            DM_LOG("detour: site bytes mismatch at +%u (found %02x, expected %02x); "
-                   "not patching",
-                   unsigned(i), site[i], expectedBytes[i]);
-            return false;
-        }
-    }
-
-    ptrdiff_t rel = reinterpret_cast<const unsigned char*>(target) - (site + 5);
-    if (rel < -0x80000000LL || rel > 0x7FFFFFFFLL) {
-        DM_LOG("detour: target out of rel32 range");
-        return false;
-    }
-
-    unsigned char patch[16];
+bool installDetour(unsigned char* site, const unsigned char* expected, size_t length,
+                   const void* target, bool useCall, size_t guardedLength) {
+    if (!site || !expected || !target || length < 5 || length > 16) return false;
+    const int slot = freeSlot();
+    if (slot < 0) return false;
+    if (guardedLength < length) guardedLength = length;
+    unsigned char patch[16] = {};
     patch[0] = useCall ? 0xE8 : 0xE9;
-    *reinterpret_cast<int32_t*>(patch + 1) = static_cast<int32_t>(rel);
-    for (size_t i = 5; i < byteCount; ++i) patch[i] = 0x90;
-
-    SuspendedThreads st;
-    if (!suspendAllOtherThreads(&st)) {
-        DM_LOG("detour: thread snapshot failed; not patching");
-        return false;
+    // On x86 rel32 arithmetic wraps over the complete 32-bit address space.
+    const uint32_t displacement = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(target)) -
+                                  static_cast<uint32_t>(reinterpret_cast<uintptr_t>(site) + 5);
+    std::memcpy(patch + 1, &displacement, 4);
+    for (size_t i = 5; i < length; ++i) patch[i] = 0x90;
+    SuspendedThreads threads = {};
+    // Bounded installation retry, never an in-frame Reset retry or loader-lock wait.
+    bool suspended = false;
+    for (int i = 0; i < 8 && !suspended; ++i) {
+        suspended = suspendOtherThreads(&threads, site, guardedLength);
+        if (!suspended) Sleep(1);
     }
-
-    DWORD oldProtect = 0;
-    if (!VirtualProtect(site, byteCount, PAGE_EXECUTE_READWRITE, &oldProtect)) {
-        DM_LOG("detour: VirtualProtect failed (%u)", unsigned(GetLastError()));
-        resumeThreads(&st);
-        return false;
+    if (!suspended) { DM_LOG("detour: could not reach safe patch boundary"); return false; }
+    if (std::memcmp(site, expected, length) != 0) { resumeThreads(&threads); return false; }
+    DWORD protection = 0;
+    if (!VirtualProtect(site, length, PAGE_EXECUTE_READWRITE, &protection)) { resumeThreads(&threads); return false; }
+    auto& state = g_patches[slot];
+    std::memcpy(state.original, site, length);
+    std::memcpy(state.replacement, patch, length);
+    std::memcpy(site, patch, length);
+    const BOOL flushed = FlushInstructionCache(GetCurrentProcess(), site, length);
+    if (!flushed) {
+        std::memcpy(site, state.original, length);
+        FlushInstructionCache(GetCurrentProcess(), site, length);
     }
-    for (size_t i = 0; i < byteCount; ++i) g_patches[slot].original[i] = site[i];
-    for (size_t i = 0; i < byteCount; ++i) site[i] = patch[i];
-    FlushInstructionCache(GetCurrentProcess(), site, byteCount);
-    VirtualProtect(site, byteCount, oldProtect, &oldProtect);
-
-    g_patches[slot].site = site;
-    g_patches[slot].len = byteCount;
-
-    resumeThreads(&st);
-    DM_LOG("detour: installed %u-byte hook at %p (target %p)",
-           unsigned(byteCount), site, target);
-    return true;
+    DWORD ignored = 0;
+    VirtualProtect(site, length, protection, &ignored);
+    if (flushed) { state.site = site; state.length = length; }
+    resumeThreads(&threads);
+    if (flushed) DM_LOG("detour: installed %u bytes at %p", static_cast<unsigned>(length), site);
+    return flushed != FALSE;
 }
 
-bool installEntryDetour(unsigned char* site, const unsigned char* expectedBytes,
-                        size_t byteCount, const void* target,
-                        unsigned char* trampolineBuf, size_t trampolineCap) {
-    if (byteCount < 5 || byteCount > 16) return false;
-    if (trampolineCap < byteCount + 5) return false;
-    int slot = slotFor(site);
-    if (slot < 0) slot = freeSlot();
-    if (slot < 0) {
-        DM_LOG("detour: no free hook slot");
-        return false;
-    }
-    for (size_t i = 0; i < byteCount; ++i) {
-        if (site[i] != expectedBytes[i]) {
-            DM_LOG("detour: entry site bytes mismatch at +%u (found %02x, "
-                   "expected %02x); not patching",
-                   unsigned(i), site[i], expectedBytes[i]);
-            return false;
-        }
-    }
-
-    // Trampoline: original instructions, then jmp back to site+byteCount.
-    DWORD trampProtect = 0;
-    if (!VirtualProtect(trampolineBuf, byteCount + 5, PAGE_EXECUTE_READWRITE,
-                        &trampProtect)) {
-        DM_LOG("detour: trampoline VirtualProtect failed");
-        return false;
-    }
-    for (size_t i = 0; i < byteCount; ++i) trampolineBuf[i] = site[i];
-    trampolineBuf[byteCount] = 0xE9;
-    const ptrdiff_t back =
-        reinterpret_cast<unsigned char*>(site + byteCount) -
-        (trampolineBuf + byteCount + 5);
-    *reinterpret_cast<int32_t*>(trampolineBuf + byteCount + 1) =
-        static_cast<int32_t>(back);
-    FlushInstructionCache(GetCurrentProcess(), trampolineBuf, byteCount + 5);
-    VirtualProtect(trampolineBuf, byteCount + 5, trampProtect, &trampProtect);
-
-    ptrdiff_t rel = reinterpret_cast<const unsigned char*>(target) - (site + 5);
-    if (rel < -0x80000000LL || rel > 0x7FFFFFFFLL) {
-        DM_LOG("detour: entry target out of rel32 range");
-        return false;
-    }
-    unsigned char patch[16];
-    patch[0] = 0xE9;
-    *reinterpret_cast<int32_t*>(patch + 1) = static_cast<int32_t>(rel);
-    for (size_t i = 5; i < byteCount; ++i) patch[i] = 0x90;
-
-    SuspendedThreads st;
-    if (!suspendAllOtherThreads(&st)) {
-        DM_LOG("detour: thread snapshot failed; not patching");
-        return false;
-    }
-    DWORD oldProtect = 0;
-    if (!VirtualProtect(site, byteCount, PAGE_EXECUTE_READWRITE, &oldProtect)) {
-        DM_LOG("detour: VirtualProtect failed (%u)", unsigned(GetLastError()));
-        resumeThreads(&st);
-        return false;
-    }
-    for (size_t i = 0; i < byteCount; ++i) g_patches[slot].original[i] = site[i];
-    for (size_t i = 0; i < byteCount; ++i) site[i] = patch[i];
-    FlushInstructionCache(GetCurrentProcess(), site, byteCount);
-    VirtualProtect(site, byteCount, oldProtect, &oldProtect);
-    g_patches[slot].site = site;
-    g_patches[slot].len = byteCount;
-    resumeThreads(&st);
-    DM_LOG("detour: installed %u-byte entry hook at %p (trampoline %p)",
-           unsigned(byteCount), site, trampolineBuf);
-    return true;
+bool installEntryDetour(unsigned char* site, const unsigned char* expected, size_t length,
+                        const void* target, unsigned char* trampoline, size_t capacity) {
+    if (!trampoline || length < 5 || length > 16 || capacity < length + 5 ||
+        std::memcmp(site, expected, length) != 0) return false;
+    // Caller provides dedicated VirtualAlloc storage, never a shared .data page.
+    std::memcpy(trampoline, expected, length);
+    trampoline[length] = 0xE9;
+    const uint32_t back = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(site) + length) -
+                          static_cast<uint32_t>(reinterpret_cast<uintptr_t>(trampoline) + length + 5);
+    std::memcpy(trampoline + length + 1, &back, 4);
+    DWORD old = 0;
+    if (!VirtualProtect(trampoline, length + 5, PAGE_EXECUTE_READ, &old) ||
+        !FlushInstructionCache(GetCurrentProcess(), trampoline, length + 5)) return false;
+    return installDetour(site, expected, length, target, false);
 }
 
 bool removeDetour(unsigned char* site) {
-    int slot = slotFor(site);
-    if (slot < 0) return false;
-
-    SuspendedThreads st;
-    if (!suspendAllOtherThreads(&st)) {
-        DM_LOG("detour: thread snapshot failed during removal; leaving hook in place");
-        return false;
+    for (auto& state : g_patches) {
+        if (state.site != site) continue;
+        SuspendedThreads threads = {};
+        if (!suspendOtherThreads(&threads, site, state.length)) return false;
+        if (std::memcmp(site, state.replacement, state.length) != 0) { resumeThreads(&threads); return false; }
+        DWORD old = 0;
+        if (!VirtualProtect(site, state.length, PAGE_EXECUTE_READWRITE, &old)) { resumeThreads(&threads); return false; }
+        std::memcpy(site, state.original, state.length);
+        FlushInstructionCache(GetCurrentProcess(), site, state.length);
+        DWORD ignored = 0;
+        VirtualProtect(site, state.length, old, &ignored);
+        state.site = nullptr;
+        resumeThreads(&threads);
+        return true;
     }
-
-    DWORD oldProtect = 0;
-    if (VirtualProtect(site, g_patches[slot].len, PAGE_EXECUTE_READWRITE,
-                       &oldProtect)) {
-        for (size_t i = 0; i < g_patches[slot].len; ++i) {
-            site[i] = g_patches[slot].original[i];
-        }
-        FlushInstructionCache(GetCurrentProcess(), site, g_patches[slot].len);
-        VirtualProtect(site, g_patches[slot].len, oldProtect, &oldProtect);
-        g_patches[slot].site = nullptr;
-        g_patches[slot].len = 0;
-    }
-    resumeThreads(&st);
-    return g_patches[slot].site == nullptr;
+    return false;
 }
-
-}  // namespace dm
+}

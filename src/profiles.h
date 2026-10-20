@@ -25,10 +25,6 @@ struct DdrawProfile {
     uint32_t flipEntryRva;
     unsigned char entryBytes[7];
     uint32_t entryByteCount;  // 6 (2020-gen prologue) or 7 (J-generation)
-    // The wrapper's own reset helper (0x363D0/0x36220) is NOT used: it
-    // dereferences the D3DX font at +0x74 without a null check and crashes
-    // when Revival's text render was never initialized (direct efz.exe
-    // launches). Kept here as a documented anchor only.
     // Renderer object globals (the thiscall object begins at
     // rendererObjectRva; fields below are its offsets).
     uint32_t rendererObjectRva;  // +0x00: object base (staging surface field)
@@ -39,16 +35,13 @@ struct DdrawProfile {
     uint32_t filterRva;           // +0x6C: D3DTEXTUREFILTERTYPE for both blits
     uint32_t borderlessRva;       // +0x71: borderless mode flag byte
     uint32_t fontRva;             // +0x74: D3DX font (may be null)
-    // The wrapper's OWN Present-failure reset helper (thiscall: self =
-    // renderer object, one stack arg = &PP). Null-safe for its surfaces;
-    // dereferences its font unconditionally (we guard on font != null).
-    // Used by the recovery path when our own sequence cannot restore the
-    // wrapper's state.
+    // Native Present-failure reset helper. The manager compares its complete
+    // canonical body, then replaces the entry with a guarded thiscall adapter.
     uint32_t resetHelperRva;
     // The wrapper WndProc's Alt+Enter keycode compare (cmp ebx/esi, 0xD).
     // We rewrite the immediate to an unpressable key so OUR Flip-entry poll
     // owns Alt+Enter (configurable exclusive/borderless), and restore the
-    // byte on detach.
+    // byte only for process lifetime (manager is pinned).
     uint32_t altEnterCmpRva;
     unsigned char altEnterBytes[3];
 };

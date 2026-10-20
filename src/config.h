@@ -37,8 +37,8 @@ struct Config {
                                   // presentation interval, 0 immediate,
                                   // 1 vsync (default -1)
     int compatLayer;              // [Display] CompatLayer (default 1):
-                                  // track+force-release foreign device
-                                  // resources around OUR resets
+                                  // use owner callbacks for known overlays;
+                                  // disabled + loaded overlay blocks resets
     int resizeBackBuffer;           // [Display] ResizeBackBuffer (default 1):
                                     // make the backbuffer follow window
                                     // maximize/restore/resize; Revival's

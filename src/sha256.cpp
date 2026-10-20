@@ -1,7 +1,5 @@
 #include "sha256.h"
 
-#include <windows.h>
-
 namespace dm {
 
 namespace {
@@ -82,39 +80,17 @@ void Sha256::finish(unsigned char out[32]) {
     unsigned char zero = 0;
     while (bufferLen_ != 56) update(&zero, 1);
     unsigned char lenBytes[8];
-    for (int i = 0; i < 8; ++i) lenBytes[i] = unsigned char(bits >> (56 - 8 * i));
+    for (int i = 0; i < 8; ++i) lenBytes[i] = static_cast<unsigned char>(bits >> (56 - 8 * i));
     // update() would count these padding bytes; write them directly instead.
     for (int i = 0; i < 8; ++i) buffer_[56 + i] = lenBytes[i];
     processBlock(buffer_);
     bufferLen_ = 0;
     for (int i = 0; i < 8; ++i) {
-        out[4 * i + 0] = unsigned char(state_[i] >> 24);
-        out[4 * i + 1] = unsigned char(state_[i] >> 16);
-        out[4 * i + 2] = unsigned char(state_[i] >> 8);
-        out[4 * i + 3] = unsigned char(state_[i]);
+        out[4 * i + 0] = static_cast<unsigned char>(state_[i] >> 24);
+        out[4 * i + 1] = static_cast<unsigned char>(state_[i] >> 16);
+        out[4 * i + 2] = static_cast<unsigned char>(state_[i] >> 8);
+        out[4 * i + 3] = static_cast<unsigned char>(state_[i]);
     }
-}
-
-bool sha256File(const char* path, unsigned char out[32]) {
-    HANDLE f = CreateFileA(path, GENERIC_READ, FILE_SHARE_READ, nullptr,
-                           OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
-    if (f == INVALID_HANDLE_VALUE) return false;
-    Sha256 h;
-    // Keep the whole frame well under one page: larger stack frames call
-    // the CRT's __chkstk, which does not exist in the CRT-free DLL build.
-    unsigned char buf[1 << 11];
-    for (;;) {
-        DWORD got = 0;
-        BOOL ok = ReadFile(f, buf, sizeof(buf), &got, nullptr);
-        if (!ok || got == 0) {
-            CloseHandle(f);
-            if (!ok) return false;
-            break;
-        }
-        h.update(buf, got);
-    }
-    h.finish(out);
-    return true;
 }
 
 }  // namespace dm

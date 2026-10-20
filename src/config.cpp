@@ -14,11 +14,11 @@ unsigned long parseHexColor(const char* text, unsigned long fallback) {
         char c = *p;
         unsigned long d;
         if (c >= '0' && c <= '9') {
-            d = unsigned long(c - '0');
+            d = static_cast<unsigned long>(c - '0');
         } else if (c >= 'a' && c <= 'f') {
-            d = unsigned long(c - 'a' + 10);
+            d = static_cast<unsigned long>(c - 'a' + 10);
         } else if (c >= 'A' && c <= 'F') {
-            d = unsigned long(c - 'A' + 10);
+            d = static_cast<unsigned long>(c - 'A' + 10);
         } else {
             return fallback;
         }

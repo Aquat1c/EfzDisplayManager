@@ -1,6 +1,5 @@
 #include "shaders.h"
 
-#include "compat.h"
 #include "logging.h"
 #include "shader_sharp.h"
 #include "shader_xbr.h"
@@ -38,18 +37,19 @@ bool shadersCreateResources(IDirect3DDevice9* dev, int srcW, int srcH) {
     if (!dev || srcW <= 0 || srcH <= 0) return false;
     if (g_cfg.filter == ShaderFilter::None) return false;
 
-    compatSuspendTracking();
     if (FAILED(dev->CreateTexture(srcW, srcH, 1, D3DUSAGE_RENDERTARGET,
                                   D3DFMT_X8R8G8B8, D3DPOOL_DEFAULT,
                                   &g_captureTex, nullptr))) {
         DM_LOG("shaders: capture texture creation failed; filter disabled");
-        compatResumeTracking();
         return false;
     }
-    g_captureTex->GetSurfaceLevel(0, &g_captureSurf);
-
-    dev->CreateRenderTarget(64, 64, D3DFMT_X8R8G8B8,
-                            D3DMULTISAMPLE_NONE, 0, FALSE, &g_guard, nullptr);
+    if (FAILED(g_captureTex->GetSurfaceLevel(0, &g_captureSurf)) || !g_captureSurf ||
+        FAILED(dev->CreateRenderTarget(64, 64, D3DFMT_X8R8G8B8,
+            D3DMULTISAMPLE_NONE, 0, FALSE, &g_guard, nullptr)) || !g_guard) {
+        DM_LOG("shaders: capture surface/overlay guard unavailable; using StretchRect");
+        shadersReleaseResources();
+        return false;
+    }
 
     if (FAILED(dev->CreatePixelShader(
             reinterpret_cast<const DWORD*>(g_sharpBilinearPS), &g_sharp))) {
@@ -62,15 +62,12 @@ bool shadersCreateResources(IDirect3DDevice9* dev, int srcW, int srcH) {
     if ((g_cfg.filter == ShaderFilter::Sharp && !g_sharp) ||
         (g_cfg.filter == ShaderFilter::Xbr && !g_xbr)) {
         shadersReleaseResources();
-        compatResumeTracking();
         return false;
     }
     if (FAILED(dev->CreateStateBlock(D3DSBT_ALL, &g_state))) {
         shadersReleaseResources();
-        compatResumeTracking();
         return false;
     }
-    compatResumeTracking();
     g_srcW = srcW;
     g_srcH = srcH;
     g_available = true;
@@ -111,13 +108,12 @@ static bool drawQuad(IDirect3DDevice9* dev, IDirect3DSurface9* bb,
                      IDirect3DSurface9* target, const RECT* dstRect,
                      IDirect3DPixelShader9* ps, const float (*consts)[4],
                      UINT nConsts, D3DTEXTUREFILTERTYPE samplerFilter) {
-    if (!g_state) return false;
-    g_state->Capture();
+    if (!g_state || !g_guard || FAILED(g_state->Capture())) return false;
 
     // Scene brackets run with the guard bound: co-loaded mods hooking the
     // d3d9 EndScene body draw their overlays into the throwaway guard.
-    IDirect3DSurface9* guard = g_guard ? g_guard : bb;
-    dev->SetRenderTarget(0, guard);
+    IDirect3DSurface9* guard = g_guard;
+    if (FAILED(dev->SetRenderTarget(0, guard))) { g_state->Apply(); return false; }
     HRESULT hrScene = dev->BeginScene();
     if (FAILED(hrScene)) {
         dev->SetRenderTarget(0, bb);
@@ -160,11 +156,15 @@ static bool drawQuad(IDirect3DDevice9* dev, IDirect3DSurface9* bb,
     };
     HRESULT hr = dev->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, q, sizeof(Vtx));
 
-    dev->SetRenderTarget(0, guard);
-    dev->EndScene();
-    dev->SetRenderTarget(0, bb);
-    g_state->Apply();
-    return SUCCEEDED(hr);
+    const HRESULT guardHr = dev->SetRenderTarget(0, guard);
+    // Balance BeginScene even on failure, then report failure so the caller
+    // clears and overwrites any accidental extra overlay draw with the native
+    // composed frame. Never claim a successful guarded shader pass otherwise.
+    const HRESULT endHr = dev->EndScene();
+    const HRESULT targetHr = dev->SetRenderTarget(0, bb);
+    const HRESULT stateHr = g_state->Apply();
+    return SUCCEEDED(hr) && SUCCEEDED(guardHr) && SUCCEEDED(endHr) &&
+           SUCCEEDED(targetHr) && SUCCEEDED(stateHr);
 }
 
 bool shadersDrawUpscaled(IDirect3DDevice9* dev, IDirect3DSurface9* srcSurface,

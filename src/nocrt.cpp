@@ -2,20 +2,24 @@
 // /NODEFAULTLIB so the import table contains only the Win32 APIs it calls
 // (XP-clean; the stock v141 static CRT would import Vista+ FlsAlloc/
 // InitializeCriticalSectionEx). The compiler still emits references to these
-// four functions for struct copies and inits, so provide byte-loop
+// five functions for struct copies, comparisons and inits, so provide byte-loop
 // implementations. No recursion: these loops compile to plain loads/stores
 // (they are marked noinline so the compiler cannot fuse a call to itself).
 
 #include <cstddef>
 
-// The float-using translation units (shaders, geometry) reference this CRT
+// The float-using shader translation unit references this CRT
 // startup symbol; in a CRT-free link it must be satisfied manually. It is
 // defined with a distinct name and aliased via the linker.
-extern "C" int _dm_fltused = 1;
+extern "C" {
+int _dm_fltused = 1;
+}
 
 // Force the compiler to treat these as plain functions, not intrinsics, so
 // the definitions below are legal.
-#pragma function(memcpy, memset, memmove, strlen)
+#if defined(_MSC_VER) && !defined(__clang__)
+#pragma function(memcpy, memset, memmove, memcmp, strlen)
+#endif
 
 extern "C" __declspec(noinline) void* memcpy(void* dst, const void* src, size_t n) {
     unsigned char* d = static_cast<unsigned char*>(dst);
@@ -26,7 +30,7 @@ extern "C" __declspec(noinline) void* memcpy(void* dst, const void* src, size_t 
 
 extern "C" __declspec(noinline) void* memset(void* dst, int c, size_t n) {
     unsigned char* d = static_cast<unsigned char*>(dst);
-    for (size_t i = 0; i < n; ++i) d[i] = unsigned char(c);
+    for (size_t i = 0; i < n; ++i) d[i] = static_cast<unsigned char>(c);
     return dst;
 }
 
@@ -39,6 +43,16 @@ extern "C" __declspec(noinline) void* memmove(void* dst, const void* src, size_t
         for (size_t i = n; i > 0; --i) d[i - 1] = s[i - 1];
     }
     return dst;
+}
+
+extern "C" __declspec(noinline) int memcmp(const void* left, const void* right,
+                                          size_t n) {
+    const unsigned char* a = static_cast<const unsigned char*>(left);
+    const unsigned char* b = static_cast<const unsigned char*>(right);
+    for (size_t i = 0; i < n; ++i) {
+        if (a[i] != b[i]) return static_cast<int>(a[i]) - static_cast<int>(b[i]);
+    }
+    return 0;
 }
 
 extern "C" __declspec(noinline) size_t strlen(const char* s) {

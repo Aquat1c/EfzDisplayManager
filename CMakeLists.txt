@@ -1,75 +1,119 @@
 cmake_minimum_required(VERSION 3.15)
-project(DisplayManager VERSION 0.2.0 LANGUAGES CXX)
+project(DisplayManager VERSION 0.9.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
-# Static linking - no VC++ runtime dependency (also required for XP-clean
-# imports: no UCRT/api-ms-win-crt DLLs).
+set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 
-add_library(DisplayManager SHARED
-    src/bootstrap.cpp
-    src/config.cpp
-    src/detour.cpp
-    src/dllmain.cpp
+include(CTest)
+option(DM_BUILD_RESET_PROBE "Build the manual D3D9 DEFAULT-pool coexistence probe" OFF)
+option(DM_BUILD_PROFILE_FIXTURE_TEST "Build the explicit Windows file/profile hash validator" OFF)
+
+# These sources have no Windows dependency; the same code is used by the DLL
+# and the host tests. File I/O is isolated in sha256_file.cpp.
+set(DM_PORTABLE_SOURCES
     src/format.cpp
+    src/fullscreen.cpp
     src/geometry.cpp
-    src/hook_flip.cpp
-    src/logging.cpp
     src/resize.cpp
-    src/nocrt.cpp
+    src/reset_transaction.cpp
     src/sha256.cpp
 )
 
-target_include_directories(DisplayManager PRIVATE src)
+if(WIN32)
+    if(NOT CMAKE_SIZEOF_VOID_P EQUAL 4)
+        message(FATAL_ERROR "DisplayManager requires Win32/x86. Use -A Win32 with MSVC.")
+    endif()
+    if(NOT MSVC AND NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+        message(FATAL_ERROR "The x86 assembly shim requires MSVC or Clang with Microsoft assembly extensions.")
+    endif()
 
-# Output name without "lib" prefix (mod loader expects mods/DisplayManager/DisplayManager.dll)
-set_target_properties(DisplayManager PROPERTIES
-    PREFIX ""
-    OUTPUT_NAME "DisplayManager"
-)
-
-# Windows XP compatibility: XP-era API level, minimum OS version 5.01 in the
-# PE headers, and no post-XP imports anywhere in the code. Build with the
-# v141 (MSVC 14.16) toolset - the last fully XP-clean CRT generation:
-#   cmake -S . -B build-xp -A Win32 -T v141
-target_compile_definitions(DisplayManager PRIVATE
-    WIN32_LEAN_AND_MEAN
-    NOMINMAX
-    _WIN32_WINNT=0x0501
-    WINVER=0x0501
-)
-
-if(MSVC)
-    target_compile_options(DisplayManager PRIVATE /W4 /GS- /GR-)
-    # 5.01 minimum OS/subsystem version in the PE optional header.
-    # CRT-free link: the v141 static CRT imports Vista+ FlsAlloc/
-    # InitializeCriticalSectionEx, which would not load on XP x86. With no
-    # CRT the import table contains only the Win32 APIs this module calls.
-    target_link_options(DisplayManager PRIVATE
-        "/SUBSYSTEM:WINDOWS,5.01"
-        "/NODEFAULTLIB"
-        "/ENTRY:DllMain"
-        "/IGNORE:4210,4078,4103"
+    add_library(DisplayManager SHARED
+        ${DM_PORTABLE_SOURCES}
+        src/bootstrap.cpp
+        src/compat.cpp
+        src/config.cpp
+        src/detour.cpp
+        src/dllmain.cpp
+        src/hook_flip.cpp
+        src/logging.cpp
+        src/nocrt.cpp
+        src/renderer_reset.cpp
+        src/sha256_file.cpp
+        src/shaders.cpp
     )
+    target_include_directories(DisplayManager PRIVATE src)
+    set_target_properties(DisplayManager PROPERTIES PREFIX "" OUTPUT_NAME "DisplayManager")
+    target_compile_definitions(DisplayManager PRIVATE
+        WIN32_LEAN_AND_MEAN NOMINMAX _WIN32_WINNT=0x0501 WINVER=0x0501
+    )
+    target_link_libraries(DisplayManager PRIVATE kernel32 user32)
+
+    # The shipped DLL is CRT-free. Static CRT selection alone is insufficient:
+    # even a static CRT can add imports unavailable on Windows XP.
+    if(MSVC)
+        target_compile_options(DisplayManager PRIVATE /W4 /GS- /GR- /Oy- /arch:IA32)
+        set_source_files_properties(src/nocrt.cpp PROPERTIES COMPILE_OPTIONS "/Oi-")
+        target_link_options(DisplayManager PRIVATE
+            "/NODEFAULTLIB" "/ENTRY:DllMain" "/MACHINE:X86"
+            "/SUBSYSTEM:WINDOWS,5.01" "/IGNORE:4210,4078,4103"
+            "/ALTERNATENAME:__fltused=__dm_fltused"
+        )
+    else()
+        # LLVM-MinGW provides a real PE32 compile/link check from Linux too.
+        target_compile_options(DisplayManager PRIVATE
+            -Wall -Wextra -march=i686 -fms-extensions -fasm-blocks
+            -fno-exceptions -fno-rtti -fno-stack-protector
+            -fno-omit-frame-pointer -ffreestanding -fno-builtin
+        )
+        target_link_options(DisplayManager PRIVATE
+            -nostdlib -fuse-ld=lld
+            "-Wl,--entry,_DllMain@12" "-Wl,--subsystem,windows:5.01"
+            "-Wl,--major-os-version,5" "-Wl,--minor-os-version,1"
+            "-Wl,--disable-auto-import"
+        )
+    endif()
+
+    if(DM_BUILD_RESET_PROBE)
+        add_library(dm_reset_probe SHARED test/reset_probe.cpp)
+        set_target_properties(dm_reset_probe PROPERTIES PREFIX "" OUTPUT_NAME "ResetProbe")
+    endif()
+
+    if(DM_BUILD_PROFILE_FIXTURE_TEST)
+        add_executable(dm_profile_fixture_test
+            test/profile_fixture_test.cpp src/sha256.cpp src/sha256_file.cpp
+        )
+        target_include_directories(dm_profile_fixture_test PRIVATE src)
+        # This generated fixture exercises the actual Win32 file-reading path.
+        # Proprietary profile binaries are never required or discovered implicitly.
+        if(BUILD_TESTING)
+            file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/sha256_abc_fixture.txt" "abc")
+            add_test(NAME sha256_file_abc COMMAND dm_profile_fixture_test --file
+                "${CMAKE_CURRENT_BINARY_DIR}/sha256_abc_fixture.txt"
+                ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad
+            )
+        endif()
+    endif()
+elseif(DM_BUILD_RESET_PROBE OR DM_BUILD_PROFILE_FIXTURE_TEST)
+    message(FATAL_ERROR "The manual D3D9 probe and file/profile validator require Windows.")
 endif()
 
-# Intrinsics must be off for the CRT replacement definitions.
-set_source_files_properties(src/nocrt.cpp PROPERTIES COMPILE_OPTIONS "/Oi-")
+if(BUILD_TESTING)
+    add_executable(dm_sha256_test test/sha256_test.cpp ${DM_PORTABLE_SOURCES})
+    target_include_directories(dm_sha256_test PRIVATE src)
+    add_executable(DisplayManagerResetTests
+        test/reset_transaction_test.cpp src/reset_transaction.cpp
+    )
+    target_include_directories(DisplayManagerResetTests PRIVATE src)
+    if(MSVC)
+        target_compile_options(dm_sha256_test PRIVATE /W4)
+        target_compile_options(DisplayManagerResetTests PRIVATE /W4)
+    else()
+        target_compile_options(dm_sha256_test PRIVATE -Wall -Wextra -Wpedantic)
+        target_compile_options(DisplayManagerResetTests PRIVATE -Wall -Wextra -Wpedantic)
+    endif()
+    add_test(NAME portable_core COMMAND dm_sha256_test)
+    add_test(NAME reset_transaction COMMAND DisplayManagerResetTests)
 
-# Self-test (normal CRT console app; not deployed).
-add_executable(dm_sha256_test test/sha256_test.cpp src/format.cpp src/geometry.cpp src/resize.cpp src/sha256.cpp)
-target_include_directories(dm_sha256_test PRIVATE src)
-if(MSVC)
-    target_compile_options(dm_sha256_test PRIVATE /W4)
-target_link_options(dm_sha256_test PRIVATE "/MAP:../test.map")
 endif()
-enable_testing()
-add_test(NAME sha256_vectors COMMAND dm_sha256_test)
-
-# Coexistence test helper (never shipped): holds a DEFAULT-pool D3D9 texture
-# like the ImGui buffers of training/netplay so DisplayManager's resize
-# rollback can be exercised in a live game.
-add_library(dm_reset_probe SHARED test/reset_probe.cpp)
-set_target_properties(dm_reset_probe PROPERTIES PREFIX "" OUTPUT_NAME "ResetProbe")

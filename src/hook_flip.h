@@ -31,6 +31,9 @@ void setAdaptConfig(ScaleMode mode, int integerScale, int customWidth,
 
 // Window-resize support: arms the Flip-entry resize evaluation.
 void setResizeConfig(bool enabled);
+// Lifecycle is independent of resize/fullscreen configuration.
+void setResetLifecycle(bool enabled);
+void setAltEnterOwned(bool owned);
 
 // Exclusive fullscreen support: arms the F11 toggle, the VSync choice
 // (-1 keep, 0 immediate, 1 vsync) applied at every reset we perform, and
@@ -42,7 +45,7 @@ void setFullscreenConfig(bool enabled, bool hotkey, long vsync,
 // installEntryDetour before the entry site is patched).
 unsigned char* entryTrampolineBuffer();
 size_t entryTrampolineCapacity();
-void prepareEntryTrampoline();
+bool prepareEntryTrampoline();
 
 // Observation state of the final-blit hook, for reporting at shutdown.
 unsigned long hookCallCount();
@@ -67,5 +70,5 @@ extern "C" void __stdcall dmFinalStretchHook(IDirect3DDevice9* dev,
 // dmFlipEntryWork evaluates window-size changes and performs a font-safe
 // device reset through the wrapper's own globals when needed; dmFlipEntryShim
 // tail-jumps into the trampoline so Flip's prologue continues normally.
-extern "C" void dmFlipEntryWork();
+extern "C" long dmFlipEntryWork();
 extern "C" void dmFlipEntryShim();  // defined __declspec(naked) in hook_flip.cpp

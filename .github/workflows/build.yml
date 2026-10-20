@@ -1,0 +1,40 @@
+name: Build and test
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  portable-tests:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+      - name: Configure portable tests
+        run: cmake -S . -B build-host -DCMAKE_BUILD_TYPE=Release
+      - name: Build portable tests
+        run: cmake --build build-host --parallel
+      - name: Run portable tests
+        run: ctest --test-dir build-host --output-on-failure
+
+  windows-x86:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v6
+      - name: Configure native MSVC Win32 build
+        run: cmake -S . -B build-win32 -A Win32 -DDM_BUILD_RESET_PROBE=ON -DDM_BUILD_PROFILE_FIXTURE_TEST=ON
+      - name: Build CRT-free DLL and tests
+        run: cmake --build build-win32 --config Release --parallel
+      - name: Run native tests and generated file fixture
+        run: ctest --test-dir build-win32 -C Release --output-on-failure
+      - name: Verify PE32 and CRT-free import contract
+        run: python tools/verify_pe.py build-win32/Release/DisplayManager.dll
+      - name: Retain verified build for inspection
+        uses: actions/upload-artifact@v6
+        with:
+          name: DisplayManager-msvc-x86
+          path: build-win32/Release/DisplayManager.dll
+          if-no-files-found: error

@@ -1,16 +1,16 @@
 #pragma once
 
 #define DM_VERSION_MAJOR 0
-#define DM_VERSION_MINOR 3
+#define DM_VERSION_MINOR 9
 #define DM_VERSION_PATCH 0
 
-#define DM_VERSION_STRING "0.8.2"
+#define DM_VERSION_STRING "0.9.0-reset-preview"
 
 // Development stage marker. "exclusive-fullscreen": the final-blit hook now applies
 // configured output geometry (aspect-fit / integer / custom, centered),
 // an optional Point-filter override, and border fill; source, backbuffer,
 // and presentation remain the wrapper's.
-#define DM_STAGE_STRING "exclusive-fullscreen"
+#define DM_STAGE_STRING "cooperative-reset-preview"
 
 namespace dm {
 

@@ -14,7 +14,7 @@
 #include "hook_flip.h"
 #include "logging.h"
 #include "profiles.h"
-#include "hook_flip.h"
+#include "renderer_reset.h"
 #include "sha256.h"
 #include "shaders.h"
 #include "version.h"
@@ -22,8 +22,6 @@
 namespace dm {
 
 namespace {
-
-unsigned char* g_hookSite = nullptr;
 
 void logSha(const char* label, const unsigned char* hash) {
     char text[65];
@@ -124,14 +122,7 @@ DWORD WINAPI bootstrapThread(void* param) {
     DM_LOG("bootstrap: wrapper device %p, native surface %p",
            device, *reinterpret_cast<void**>(base + profile->nativeSurfaceRva));
 
-    // Compat layer first: track foreign DEFAULT-pool device resources so
-    // OUR resets can force-release them (exclusive/resize alongside
-    // training/netplay overlays). Best effort; on failure the mods gate
-    // stays active.
-    if (cfg.compatLayer &&
-        !compatInstall(reinterpret_cast<IDirect3DDevice9*>(device))) {
-        DM_LOG("bootstrap: compat layer unavailable; mods gate stays active");
-    }
+    compatConfigure(cfg.compatLayer != 0);
 
     // 3b. Make the window sizable and maximizable. The wrapper creates it as
     // WS_VISIBLE|WS_CAPTION|WS_SYSMENU|WS_MINIMIZEBOX (fixed-size, grayed
@@ -164,116 +155,79 @@ DWORD WINAPI bootstrapThread(void* param) {
         }
     }
 
-    // Shader upscaling (Sharp/xBR) when configured.
-    {
-        dm::ShaderConfig sc;
-        if (cfg.filter == 100) sc.filter = dm::ShaderFilter::Sharp;
-        if (cfg.filter == 101) sc.filter = dm::ShaderFilter::Xbr;
-        sc.sharpness = float(cfg.sharpness) / 10.0f;
-        dm::shadersConfigure(sc);
-    }
-
-    // 4. Install the observation/adaptation hook.
-    HookConfig hc;
-    hc.logFirst = cfg.logFirst;
-    hc.logEvery = cfg.logEvery;
+    HookConfig hc = {cfg.logFirst, cfg.logEvery};
     setHookContext(base, profile, hc);
     setAdaptConfig(cfg.mode, cfg.integerScale, cfg.customWidth, cfg.customHeight,
                    cfg.filter, cfg.backgroundColor);
-    unsigned char* site = base + profile->finalStretchRva;
-    if (!installDetour(site, profile->hookBytes, sizeof(profile->hookBytes),
-                       reinterpret_cast<const void*>(&dmFinalStretchHook),
-                       /*useCall=*/true)) {
-        DM_LOG("bootstrap: hook installation failed; staying inert");
+    setResizeConfig(false);
+    setFullscreenConfig(false, cfg.fullscreenHotkey != 0, cfg.vsync, false,
+                        cfg.borderlessFullscreen != 0);
+
+    // Inline hooks and device shadow vtables outlive individual callbacks.
+    // Pin the DLL before publishing any code pointer. Hot unload is deliberately
+    // unsupported; no attempt to suspend/rewrite render threads under DllMain.
+    HMODULE pinned = nullptr;
+    if (!GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
+                           GET_MODULE_HANDLE_EX_FLAG_PIN,
+                           reinterpret_cast<LPCSTR>(&bootstrapThread), &pinned)) {
+        DM_LOG("bootstrap: could not pin hook module; staying inert");
         return 0;
     }
-    g_hookSite = site;
-
-    // Window-resize support: a Flip-entry detour is the only between-frames
-    // point where a voluntary reset is safe (no backbuffer reference held,
-    // and every surface pointer is reloaded from globals afterward, so the
-    // resizing frame renders normally at the new size).
-    bool deviceResourceModLoaded = false;
-    const bool compatReady = compatActive();
-    if (cfg.resizeBackBuffer) {
-        // Mods with D3D9 default-pool resources (ImGui buffers) make
-        // IDirect3DDevice9::Reset return D3DERR_INVALIDCALL by design; a
-        // backbuffer resize is impossible until those mods release their
-        // resources around resets. Gate off instead of attempting it.
-        static const char* kDeviceResourceMods[] = {
-            "efz_training_mode.dll", "efz_netplay_mod.dll",
-            "ResetProbe.dll"  // in-tree coexistence test fixture
-        };
-        for (int m = 0; m < 3; ++m) {
-            if (GetModuleHandleA(kDeviceResourceMods[m])) {
-                deviceResourceModLoaded = true;
-            }
-        }
-        if (deviceResourceModLoaded && !compatActive()) {
-            DM_LOG("coexist: a device-resource mod is loaded and the compat "
-                   "layer is unavailable; backbuffer resize disabled for "
-                   "this session (maximize falls back to the DWM stretch)");
-        } else if (deviceResourceModLoaded) {
-            DM_LOG("coexist: device-resource mod(s) loaded; compat layer "
-                   "will force-release their resources around OUR resets");
-        }
-    }
-    // With the compat layer active, resets force-release foreign resources,
-    // so the gate only applies when the layer is unavailable/disabled.
-    setResizeConfig(cfg.resizeBackBuffer != 0 &&
-                    (!deviceResourceModLoaded || compatReady));
-    if (cfg.fullscreen && deviceResourceModLoaded && !compatReady) {
-        DM_LOG("coexist: exclusive fullscreen also disabled (device-resource "
-               "mod loaded)");
-    }
-    setFullscreenConfig(!deviceResourceModLoaded || compatReady,
-                        cfg.fullscreenHotkey != 0,
-                        cfg.vsync, false, cfg.borderlessFullscreen != 0);
-    // Own Alt+Enter: rewrite the wrapper WndProc's keycode compare to an
-    // unpressable key so its stock borderless toggle cannot race ours. Byte
-    // verified against the profile; left alone on mismatch (both toggles
-    // would then fire - logged).
-    {
-        unsigned char* site = base + profile->altEnterCmpRva;
-        if (site[0] == profile->altEnterBytes[0] &&
-            site[1] == profile->altEnterBytes[1] &&
-            site[2] == profile->altEnterBytes[2]) {
-            DWORD oldProtect = 0;
-            if (VirtualProtect(site, 3, PAGE_EXECUTE_READWRITE, &oldProtect)) {
-                site[2] = 0xE6;  // VK_ICO_CLEAR: effectively unpressable
-                FlushInstructionCache(GetCurrentProcess(), site, 3);
-                VirtualProtect(site, 3, oldProtect, &oldProtect);
-                DM_LOG("window: Alt+Enter now owned by DisplayManager "
-                       "(wrapper handler neutralized)");
-            }
-        } else {
-            DM_LOG("window: Alt+Enter site bytes mismatch; wrapper handler "
-                   "left active (both toggles may fire)");
-        }
-    }
-    if (!deviceResourceModLoaded && cfg.fullscreen) {
-        DM_LOG("fullscreen: exclusive requested at startup (F11 toggles)");
-    }
-    if (cfg.resizeBackBuffer) {
-        prepareEntryTrampoline();
-        unsigned char* entrySite = base + profile->flipEntryRva;
-        if (!installEntryDetour(entrySite, profile->entryBytes,
+    const unsigned char* helperBytes = nullptr;
+    size_t helperLength = 0;
+    bool lifecycle = false;
+    if (rendererResetSignature(&helperBytes, &helperLength) && prepareEntryTrampoline()) {
+        if (installEntryDetour(base + profile->flipEntryRva, profile->entryBytes,
                                 profile->entryByteCount,
                                 reinterpret_cast<const void*>(&dmFlipEntryShim),
-                                entryTrampolineBuffer(),
-                                entryTrampolineCapacity())) {
-            DM_LOG("bootstrap: entry hook failed; resize disabled "
-                   "(final-blit hook stays active)");
-            setResizeConfig(false);
+                                entryTrampolineBuffer(), entryTrampolineCapacity())) {
+            lifecycle = installDetour(base + profile->resetHelperRva, helperBytes, 6,
+                                       reinterpret_cast<const void*>(&dmNativeResetHook), false, helperLength);
         }
     }
-    if (cfg.fullscreen && (!deviceResourceModLoaded || compatReady)) {
+    setResetLifecycle(lifecycle);
+    if (!lifecycle) {
+        DM_LOG("reset: complete helper/entry admission failed; resize/fullscreen/shaders disabled");
+    } else {
+        DM_LOG("reset: lifecycle installed (full helper match: %u bytes)", static_cast<unsigned>(helperLength));
+    }
+
+    ShaderConfig sc;
+    if (lifecycle && cfg.filter == 100) sc.filter = ShaderFilter::Sharp;
+    if (lifecycle && cfg.filter == 101) sc.filter = ShaderFilter::Xbr;
+    sc.sharpness = float(cfg.sharpness) / 10.0f;
+    shadersConfigure(sc);
+    unsigned char* site = base + profile->finalStretchRva;
+    if (!installDetour(site, profile->hookBytes, sizeof(profile->hookBytes),
+                       reinterpret_cast<const void*>(&dmFinalStretchHook), true)) {
+        DM_LOG("bootstrap: final blit hook unavailable; admitted reset lifecycle retained");
+        return 0;
+    }
+    setResizeConfig(lifecycle && cfg.resizeBackBuffer != 0);
+    setFullscreenConfig(lifecycle, cfg.fullscreenHotkey != 0, cfg.vsync, false,
+                        cfg.borderlessFullscreen != 0);
+
+    // Only replace a working native shortcut if its replacement is installed
+    // and enabled. If admission fails, F11 remains independent and we do not
+    // also poll Alt+Enter (two owners would race).
+    if (lifecycle && cfg.fullscreenHotkey && compatCanReset()) {
+        unsigned char* keySite = base + profile->altEnterCmpRva;
+        if (memcmp(keySite, profile->altEnterBytes, 3) == 0) {
+            DWORD oldProtect = 0;
+            if (VirtualProtect(keySite, 3, PAGE_EXECUTE_READWRITE, &oldProtect)) {
+                keySite[2] = 0xE6;
+                FlushInstructionCache(GetCurrentProcess(), keySite, 3);
+                DWORD ignored = 0;
+                VirtualProtect(keySite, 3, oldProtect, &ignored);
+                setAltEnterOwned(true);
+                DM_LOG("window: Alt+Enter replacement installed");
+            }
+        }
+    }
+    if (lifecycle && cfg.fullscreen) {
         if (cfg.fullscreenDelayMs > 0) Sleep(cfg.fullscreenDelayMs);
         setFullscreenConfig(true, cfg.fullscreenHotkey != 0, cfg.vsync, true,
                             cfg.borderlessFullscreen != 0);
-        DM_LOG("fullscreen: %s mode requested at startup (F11/Alt+Enter "
-               "toggles)",
-               cfg.borderlessFullscreen ? "borderless" : "exclusive");
     }
     DM_LOG("bootstrap: hook active (observe + adapt: mode=%d scale=%d "
            "custom=%dx%d filter=%lu bg=%06lx)",
@@ -291,13 +245,8 @@ void startBootstrap(HMODULE module) {
     if (t) CloseHandle(t);
 }
 
-// Called from DLL_PROCESS_DETACH with lpReserved == NULL (real unload).
-void shutdownFromDetach() {
-    if (g_hookSite) {
-        removeDetour(g_hookSite);
-        DM_LOG("shutdown: hook removed after %lu observed flips", hookCallCount());
-        g_hookSite = nullptr;
-    }
-}
+// Armed hooks pin the module for process lifetime. An inert module has no
+// published code pointers and needs no hook removal under the loader lock.
+void shutdownFromDetach() {}
 
 }  // namespace dm

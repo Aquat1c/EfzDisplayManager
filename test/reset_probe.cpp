@@ -1,9 +1,8 @@
-// dm_reset_probe: a coexistence test helper, never shipped. When loaded via
-// EfzModManager it waits for the Revival wrapper's D3D9 device (renderer-
-// split 1.02j globals) and holds one DEFAULT-pool texture forever, exactly
-// like the ImGui buffers of efz-training-mode / efz_netplay_mod do. This
-// makes IDirect3DDevice9::Reset return D3DERR_INVALIDCALL, so DisplayManager
-// backbuffer resize must roll back cleanly instead of corrupting the device.
+// Manual legacy-owner negative fixture; never shipped. This deliberately has
+// no EFZ_QueryOverlayResetApiV1 export. DisplayManager must detect ResetProbe.dll
+// and refuse voluntary Reset before destroying any owner resources. This is not
+// a production D3D9 failure-injection harness (it uses a worker thread and a
+// fixed split-J address); use only an isolated matching test game copy.
 // Log: ResetProbe.log next to the DLL.
 
 #include <windows.h>
@@ -64,8 +63,7 @@ static DWORD WINAPI probeThread(void*) {
         L("ResetProbe: device global never appeared");
         return 0;
     }
-    L("ResetProbe: device %p - settling 3s so the compat tracking"
-      " hooks install first", dev);
+    L("ResetProbe: device %p - manager must block voluntary Reset for this legacy owner", dev);
     Sleep(3000);
 
     IDirect3DTexture9* tex = nullptr;
