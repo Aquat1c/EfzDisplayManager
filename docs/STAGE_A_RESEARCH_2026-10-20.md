@@ -433,7 +433,36 @@ The v0.2.0 `stage-a-observe` module ran inside the game on 2026-10-20
   runtime geometry (dstRect letterbox values). The observation hook logs all
   of these automatically when they occur.
 
-## 12. Stage A implementation record (v0.2.0 → v0.8.1, 2026-10-20)
+## 12. Stage A implementation record (v0.2.0 → v0.8.2, 2026-10-20)
+
+**v0.8.2 resize-crash fix (user-reported crash at efz.exe 0x40BCF9):** the
+crash decoded to the game calling IDirectDrawSurface7::GetPalette
+(vtable+0x64) and dereferencing the result at 0x40BCF9 - it walked into
+the null-surface state left by a failed switch (our sequence had released
+and nulled the wrapper's surfaces after Reset INVALIDCALL; recreation is
+impossible on a DEVICENOTRESET device). The same death spiral as the
+exclusive-exit failures, now with the game itself crashing through the
+palette path (the palette table visible in the user's stack dump).
+
+Fixes:
+- recovery now delegates to the WRAPPER's own Present-failure reset helper
+  (per-profile resetHelperRva: 0x363D0 split-J, 0x36220 original-J,
+  0x165C0 2020-gen, 0x16670 1.02i; font-null guarded - the helper
+  dereferences its font) when our sequence cannot restore state. The
+  helper recreates staging/native from its own stored format/size and
+  re-establishes its emulated-DirectDraw associations.
+- verified live on the crash repro (deterministic SetWindowPos resize to
+  the exact crash size with both mods loaded): the resize Reset still hit
+  the unresolved INVALIDCALL, but the game process SURVIVED (skip-frame +
+  delegated recovery; no WER crash - last crash event remains from an
+  earlier build), and subsequent sessions resize successfully again
+  (evidence: runtime-resize-crash-fix.txt - a later 2560x1377 resize
+  recreated surfaces 1/1).
+- The underlying Reset-INVALIDCALL-with-zero-outstanding-refs remains THE
+  open bug (affects exclusive-exit and some resizes, with or without
+  mods). Next session: deterministic harness + D3D9 debug-layer run.
+
+The sections below describe earlier versions as implemented at the time.
 
 **v0.8.1 exclusive+mods continued (user reports: exit still broke; reproduced
 with InGameNetplay ALONE as well):**

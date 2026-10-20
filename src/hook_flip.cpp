@@ -525,19 +525,43 @@ extern "C" void dmFlipEntryWork() {
 
     if (needRecovery) {
         static int s_recoveryFailures = 0;
-        if (resetSequence(nullptr, "device-recovery")) {
+        IDirect3DDevice9* recDev = *reinterpret_cast<IDirect3DDevice9**>(
+            g_obs.base + g_obs.profile->deviceRva);
+        const bool ourSurfacesGone =
+            *reinterpret_cast<void**>(g_obs.base +
+                                     g_obs.profile->rendererObjectRva) == nullptr;
+        if (!ourSurfacesGone && recDev &&
+            resetSequence(nullptr, "device-recovery")) {
             DM_LOG("device: recovered after D3DERR_DEVICENOTRESET");
             s_recoveryFailures = 0;
-        } else {
-            // A failed recovery usually means surfaces are gone (globals
-            // nulled by an earlier failed switch). Stop retrying every frame
-            // - log once per 600 failures - and keep skipping frames so the
-            // process stays alive for teardown.
+        } else if (recDev) {
+            // Our sequence cannot run (surfaces missing or failed). Let the
+            // WRAPPER's own reset helper do the work: it is null-safe for
+            // its surfaces, re-notifies its D3DX font, and recreates
+            // staging/native from its own stored format/size - which also
+            // restores the associations (palette, conversion state) its
+            // emulated DirectDraw layer needs. Guarded on the font being
+            // non-null: the helper dereferences it unconditionally.
+            void* font =
+                *reinterpret_cast<void**>(g_obs.base + g_obs.profile->fontRva);
+            if (font) {
+                typedef void (__thiscall* HelperFn)(void*, void*);
+                HelperFn helper = reinterpret_cast<HelperFn>(
+                    g_obs.base + g_obs.profile->resetHelperRva);
+                helper(g_obs.base + g_obs.profile->rendererObjectRva,
+                       g_obs.base + g_obs.profile->ppRva);
+                if (s_recoveryFailures == 0) {
+                    DM_LOG("device: delegated recovery to the wrapper's own "
+                           "reset helper");
+                }
+            }
             if (s_recoveryFailures == 0 || s_recoveryFailures % 600 == 0) {
-                DM_LOG("device: recovery failed (attempt %d); rendering is "
-                       "down until the device recovers",
+                DM_LOG("device: recovery still failing (attempt %d)",
                        s_recoveryFailures);
             }
+            ++s_recoveryFailures;
+            g_skipThisFlip = 1;
+        } else {
             ++s_recoveryFailures;
             g_skipThisFlip = 1;
         }

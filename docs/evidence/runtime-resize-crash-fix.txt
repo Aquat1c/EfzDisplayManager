@@ -1,0 +1,82 @@
+[22:08:44.058] EFZ DisplayManager v0.8.2 (exclusive-fullscreen): attached, deferring to bootstrap worker
+[22:08:44.065] admission: DDRAW.dll loaded at 71b10000 (F:\EFZ - Copy\DDRAW.dll)
+[22:08:44.070] admission: file SHA-256: c486903e82037ea6eb648fce662a9ebc8c60537629a84fdbed573b7ed9045f7a
+[22:08:44.070] admission: profile accepted: Revival 2020-generation wrapper (1.02e-era) (PE timestamp 5ea72e7f)
+[22:08:44.574] bootstrap: wrapper device 05553460, native surface 00b45b00
+[22:08:44.574] compat: in-place vtable hooks installed (vt=055563bc tex=73711b80)
+[22:08:44.703] window: style 14ca0000 -> 14cf0000 (maximize enabled + drag-resize (pauses game during drag), client preserved)
+[22:08:44.761] detour: installed 6-byte hook at 71b2fc1f (target 73713bc0)
+[22:08:44.762] coexist: device-resource mod(s) loaded; compat layer will force-release their resources around OUR resets
+[22:08:44.762] window: Alt+Enter now owned by DisplayManager (wrapper handler neutralized)
+[22:08:44.851] detour: installed 6-byte entry hook at 71b2f9e0 (trampoline 7371a020)
+[22:08:44.851] bootstrap: hook active (observe + adapt: mode=0 scale=1 custom=640x480 filter=101 bg=000000)
+[22:08:44.938] surfaces: native 640x480, backbuffer 1280x960 (src 00b45b00 dst 00b456a0)
+[22:08:44.939] shaders: pipeline ready (filter=2 sharp=1 xbr=1)
+[22:08:44.939] flip #1: dstRect=NULL(full) filter=2 pp=1280x960 borderless=0 <changed>
+[22:08:44.939] adapt: -> (0,0,1280,960) 1280x960 filter=101 (was 2)
+[22:08:44.967] flip #2: dstRect=NULL(full) filter=2 pp=1280x960 borderless=0
+[22:08:44.967] adapt: -> (0,0,1280,960) 1280x960 filter=101 (was 2)
+[22:08:44.969] flip #3: dstRect=NULL(full) filter=2 pp=1280x960 borderless=0
+[22:08:44.969] adapt: -> (0,0,1280,960) 1280x960 filter=101 (was 2)
+[22:08:44.983] flip #4: dstRect=NULL(full) filter=2 pp=1280x960 borderless=0
+[22:08:44.983] adapt: -> (0,0,1280,960) 1280x960 filter=101 (was 2)
+[22:08:44.999] flip #5: dstRect=NULL(full) filter=2 pp=1280x960 borderless=0
+[22:08:44.999] adapt: -> (0,0,1280,960) 1280x960 filter=101 (was 2)
+[22:08:45.014] flip #6: dstRect=NULL(full) filter=2 pp=1280x960 borderless=0
+[22:08:45.014] adapt: -> (0,0,1280,960) 1280x960 filter=101 (was 2)
+[22:08:54.389] resize: client 2560x1377 stable; backbuffer 1280x960 -> 2560x1377
+[22:08:54.389] compat: force-released 3 foreign device resources
+[22:08:54.391] resize: surface recreation staging=1 native=1
+[22:08:54.391] shaders: pipeline ready (filter=2 sharp=1 xbr=1)
+[22:08:59.279] resize: client 1167x751 stable; backbuffer 2560x1377 -> 1167x751
+[22:08:59.279] resize: Reset failed hr=8876086c (TCL 88760869), retry 0 (swept 0)
+[22:08:59.299] resize: Reset failed hr=8876086c (TCL 88760869), retry 1 (swept 0)
+[22:08:59.319] resize: Reset failed hr=8876086c (TCL 88760869), retry 2 (swept 0)
+[22:08:59.340] resize: Reset hr=8876086c (TCL 88760869) - rolling back
+[22:08:59.340] resize: rollback reset hr=8876086c
+[22:08:59.340] resize: surface create failed hr=8876086c
+[22:08:59.340] resize: surface create failed hr=8876086c
+[22:08:59.340] resize: recreation failed (staging=0 native=0, TCL 88760869)
+[22:08:59.340] resize: surface recreation staging=0 native=0
+[22:08:59.340] device: D3DERR_DEVICENOTRESET - recovering
+[22:08:59.340] device: delegated recovery to the wrapper's own reset helper
+[22:08:59.340] device: recovery still failing (attempt 0)
+[22:09:44.775] EFZ DisplayManager v0.8.2 (exclusive-fullscreen): attached, deferring to bootstrap worker
+[22:09:44.781] admission: DDRAW.dll loaded at 71b10000 (F:\EFZ - Copy\DDRAW.dll)
+[22:09:44.786] admission: file SHA-256: c486903e82037ea6eb648fce662a9ebc8c60537629a84fdbed573b7ed9045f7a
+[22:09:44.786] admission: profile accepted: Revival 2020-generation wrapper (1.02e-era) (PE timestamp 5ea72e7f)
+[22:09:45.037] bootstrap: wrapper device 055b6fa0, native surface 009bf4c0
+[22:09:45.037] compat: in-place vtable hooks installed (vt=055b9efc tex=73711b80)
+[22:09:45.334] window: style 14ca0000 -> 14cf0000 (maximize enabled + drag-resize (pauses game during drag), client preserved)
+[22:09:45.377] detour: installed 6-byte hook at 71b2fc1f (target 73713bc0)
+[22:09:45.377] coexist: device-resource mod(s) loaded; compat layer will force-release their resources around OUR resets
+[22:09:45.377] window: Alt+Enter now owned by DisplayManager (wrapper handler neutralized)
+[22:09:45.444] detour: installed 6-byte entry hook at 71b2f9e0 (trampoline 7371a020)
+[22:09:45.445] bootstrap: hook active (observe + adapt: mode=0 scale=1 custom=640x480 filter=101 bg=000000)
+[22:09:45.500] surfaces: native 640x480, backbuffer 1280x960 (src 009bf4c0 dst 009bf1a0)
+[22:09:45.502] shaders: pipeline ready (filter=2 sharp=1 xbr=1)
+[22:09:45.502] flip #1: dstRect=NULL(full) filter=2 pp=1280x960 borderless=0 <changed>
+[22:09:45.502] adapt: -> (0,0,1280,960) 1280x960 filter=101 (was 2)
+[22:09:45.526] flip #2: dstRect=NULL(full) filter=2 pp=1280x960 borderless=0
+[22:09:45.526] adapt: -> (0,0,1280,960) 1280x960 filter=101 (was 2)
+[22:09:45.539] flip #3: dstRect=NULL(full) filter=2 pp=1280x960 borderless=0
+[22:09:45.539] adapt: -> (0,0,1280,960) 1280x960 filter=101 (was 2)
+[22:09:45.554] flip #4: dstRect=NULL(full) filter=2 pp=1280x960 borderless=0
+[22:09:45.554] adapt: -> (0,0,1280,960) 1280x960 filter=101 (was 2)
+[22:09:45.570] flip #5: dstRect=NULL(full) filter=2 pp=1280x960 borderless=0
+[22:09:45.570] adapt: -> (0,0,1280,960) 1280x960 filter=101 (was 2)
+[22:09:45.586] flip #6: dstRect=NULL(full) filter=2 pp=1280x960 borderless=0
+[22:09:45.586] adapt: -> (0,0,1280,960) 1280x960 filter=101 (was 2)
+[22:09:52.643] resize: client 2560x1377 stable; backbuffer 1280x960 -> 2560x1377
+[22:09:52.645] resize: surface recreation staging=1 native=1
+[22:09:52.645] shaders: pipeline ready (filter=2 sharp=1 xbr=1)
+[22:09:52.646] surfaces: native 640x480, backbuffer 2560x1377 (src 10b47b60 dst 10b48100)
+[22:09:52.646] flip #455: dstRect=NULL(full) filter=2 pp=2560x1377 borderless=0 <changed>
+[22:09:52.646] flip #455: native/device pointer changed (post-reset recreation)
+[22:09:52.646] adapt: -> (362,0,2198,1377) 1836x1377 filter=101 (was 2)
+[22:09:54.849] flip #600: dstRect=NULL(full) filter=2 pp=2560x1377 borderless=0
+[22:09:54.849] adapt: -> (362,0,2198,1377) 1836x1377 filter=101 (was 2)
+[22:10:00.734] resize: client 640x480 stable; backbuffer 2560x1377 -> 1280x960
+[22:10:00.734] compat: force-released 3 foreign device resources
+[22:10:00.736] resize: surface recreation staging=1 native=1
+[22:10:00.737] shaders: pipeline ready (filter=2 sharp=1 xbr=1)
