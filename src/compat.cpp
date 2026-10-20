@@ -74,6 +74,63 @@ long __stdcall dmCreateVB(void* self, UINT len, DWORD usage, DWORD fvf,
     return hr;
 }
 
+typedef long(__stdcall* CreateIBFn)(void*, UINT, DWORD, D3DFORMAT, D3DPOOL,
+                                    IDirect3DIndexBuffer9**, void*);
+CreateIBFn g_origCreateIB;
+long __stdcall dmCreateIB(void* self, UINT len, DWORD usage, D3DFORMAT fmt,
+                          D3DPOOL pool, IDirect3DIndexBuffer9** out,
+                          void* shared) {
+    long hr = g_origCreateIB(self, len, usage, fmt, pool, out, shared);
+    if (SUCCEEDED(hr) && out && *out) {
+        trackIfDefaultPool(pool, *out);
+    }
+    return hr;
+}
+
+typedef long(__stdcall* CreateVolTexFn)(void*, UINT, UINT, UINT, UINT, DWORD,
+                                        DWORD, D3DPOOL,
+                                        IDirect3DVolumeTexture9**, void*);
+CreateVolTexFn g_origCreateVolTex;
+long __stdcall dmCreateVolTex(void* self, UINT w, UINT h, UINT d, UINT lv,
+                              DWORD usage, DWORD fmt, D3DPOOL pool,
+                              IDirect3DVolumeTexture9** out, void* shared) {
+    long hr = g_origCreateVolTex(self, w, h, d, lv, usage, fmt, pool, out,
+                                 shared);
+    if (SUCCEEDED(hr) && out && *out) {
+        trackIfDefaultPool(pool, *out);
+    }
+    return hr;
+}
+
+typedef long(__stdcall* CreateCubeTexFn)(void*, UINT, UINT, DWORD, DWORD,
+                                         D3DPOOL,
+                                         IDirect3DCubeTexture9**, void*);
+CreateCubeTexFn g_origCreateCubeTex;
+long __stdcall dmCreateCubeTex(void* self, UINT edge, UINT lv, DWORD usage,
+                               DWORD fmt, D3DPOOL pool,
+                               IDirect3DCubeTexture9** out, void* shared) {
+    long hr = g_origCreateCubeTex(self, edge, lv, usage, fmt, pool, out,
+                                  shared);
+    if (SUCCEEDED(hr) && out && *out) {
+        trackIfDefaultPool(pool, *out);
+    }
+    return hr;
+}
+
+typedef long(__stdcall* CreateDSFn)(void*, UINT, UINT, D3DFORMAT,
+                                    D3DMULTISAMPLE_TYPE, DWORD, BOOL,
+                                    IDirect3DSurface9**, void*);
+CreateDSFn g_origCreateDS;
+long __stdcall dmCreateDS(void* self, UINT w, UINT h, D3DFORMAT fmt,
+                          D3DMULTISAMPLE_TYPE ms, DWORD q, BOOL discard,
+                          IDirect3DSurface9** out, void* shared) {
+    long hr = g_origCreateDS(self, w, h, fmt, ms, q, discard, out, shared);
+    if (SUCCEEDED(hr) && out && *out) {
+        trackIfDefaultPool(D3DPOOL_DEFAULT, *out);
+    }
+    return hr;
+}
+
 typedef long(__stdcall* CreateRTFn)(void*, UINT, UINT, D3DFORMAT,
                                      D3DMULTISAMPLE_TYPE, DWORD, BOOL,
                                      IDirect3DSurface9**, void*);
@@ -119,10 +176,16 @@ bool compatInstall(IDirect3DDevice9* dev) {
     g_origCreateVB = (CreateVBFn)vt[kVtCreateVertexBuffer];
     g_origCreateRT = (CreateRTFn)vt[kVtCreateRenderTarget];
     g_origCreateOffs = (CreateOffsFn)vt[kVtCreateOffscreenPlainSurface];
+    g_origCreateIB = (CreateIBFn)vt[kVtCreateIndexBuffer];
+    g_origCreateVolTex = (CreateVolTexFn)vt[kVtCreateVolumeTexture];
+    g_origCreateCubeTex = (CreateCubeTexFn)vt[kVtCreateCubeTexture];
+    g_origCreateDS = (CreateDSFn)vt[kVtCreateDepthStencilSurface];
 
     DWORD oldProtect = 0;
     const int first = kVtCreateTexture;
     const int count = kVtCreateOffscreenPlainSurface - kVtCreateTexture + 1;
+    // (covers slots 23..36 incl. index buffer, volume/cube textures,
+    // depth-stencil surfaces)
     if (!VirtualProtect(&vt[first], count * sizeof(void*), PAGE_READWRITE,
                         &oldProtect)) {
         DM_LOG("compat: vtable protect failed (%lu)",
@@ -133,6 +196,10 @@ bool compatInstall(IDirect3DDevice9* dev) {
     vt[kVtCreateVertexBuffer] = (void*)&dmCreateVB;
     vt[kVtCreateRenderTarget] = (void*)&dmCreateRT;
     vt[kVtCreateOffscreenPlainSurface] = (void*)&dmCreateOffs;
+    vt[kVtCreateIndexBuffer] = (void*)&dmCreateIB;
+    vt[kVtCreateVolumeTexture] = (void*)&dmCreateVolTex;
+    vt[kVtCreateCubeTexture] = (void*)&dmCreateCubeTex;
+    vt[kVtCreateDepthStencilSurface] = (void*)&dmCreateDS;
     FlushInstructionCache(GetCurrentProcess(), &vt[first],
                           count * sizeof(void*));
     g_installed = true;

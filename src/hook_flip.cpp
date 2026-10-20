@@ -138,7 +138,13 @@ bool resetSequence(unsigned char* fallbackPp, const char* reason) {
     IDirect3DSurface9* native = *reinterpret_cast<IDirect3DSurface9**>(
         g_obs.base + g_obs.profile->nativeSurfaceRva);
     if (!dev || !staging || !native) {
-        DM_LOG("%s: device/surfaces missing; aborted", reason);
+        static bool s_announced = false;
+        if (!s_announced) {
+            s_announced = true;
+            DM_LOG("%s: device/surfaces missing (globals nulled by an "
+                   "earlier failed switch); aborting quietly from now on",
+                   reason);
+        }
         return false;
     }
     D3DSURFACE_DESC dS = {}, dN = {};
@@ -474,9 +480,21 @@ extern "C" void dmFlipEntryWork() {
     }
 
     if (needRecovery) {
+        static int s_recoveryFailures = 0;
         if (resetSequence(nullptr, "device-recovery")) {
             DM_LOG("device: recovered after D3DERR_DEVICENOTRESET");
+            s_recoveryFailures = 0;
         } else {
+            // A failed recovery usually means surfaces are gone (globals
+            // nulled by an earlier failed switch). Stop retrying every frame
+            // - log once per 600 failures - and keep skipping frames so the
+            // process stays alive for teardown.
+            if (s_recoveryFailures == 0 || s_recoveryFailures % 600 == 0) {
+                DM_LOG("device: recovery failed (attempt %d); rendering is "
+                       "down until the device recovers",
+                       s_recoveryFailures);
+            }
+            ++s_recoveryFailures;
             g_skipThisFlip = 1;
         }
         return;

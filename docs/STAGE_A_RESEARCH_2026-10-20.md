@@ -433,7 +433,35 @@ The v0.2.0 `stage-a-observe` module ran inside the game on 2026-10-20
   runtime geometry (dstRect letterbox values). The observation hook logs all
   of these automatically when they occur.
 
-## 12. Stage A implementation record (v0.2.0 → v0.7.1, 2026-10-20)
+## 12. Stage A implementation record (v0.2.0 → v0.7.2, 2026-10-20)
+
+**v0.7.2 rendering-death fix (user-reported: netplay worked in exclusive,
+then all rendering died on exit, F:\EFZ - Copy):** the compat layer only
+tracked CreateTexture / CreateVertexBuffer / CreateRenderTarget /
+CreateOffscreenPlainSurface - ImGui's INDEX buffers (and volume/cube
+textures, depth-stencil surfaces) slipped through untracked. Sequence of
+death: exclusive ran fine with netplay+training (their overlays lazily
+created buffers during play); on EXIT the tracked resources were
+force-released but the untracked index buffers remained outstanding ->
+Reset D3DERR_INVALIDCALL -> rollback tried to recreate the wrapper's
+surfaces, but a NOTRESET device refuses new default-pool allocations ->
+both creations failed -> wrapper globals left NULL -> endless
+"device-recovery: device/surfaces missing" with dead rendering.
+
+Fixes: (1) all remaining default-pool creation slots are now hooked
+(CreateIndexBuffer, CreateVolumeTexture, CreateCubeTexture,
+CreateDepthStencilSurface) - the contiguous 23..36 vtable range covers
+everything; (2) recovery-failure and surfaces-missing paths log once per
+600 failures instead of per frame, keeping the process alive for teardown.
+
+Live-verified on the reported copy with training + netplay loaded:
+exclusive entered (user Alt+Enter), ran with mods creating resources, then
+EXIT -> `compat: force-released 5 foreign device resources` (vs 4 before -
+the index buffer now included) -> Reset SUCCEEDED -> surfaces recreated
+1/1, shaders rebuilt, clean return to windowed 1280x960. Evidence:
+[evidence/runtime-coexist-exit.txt](evidence/runtime-coexist-exit.txt).
+
+The sections below describe earlier versions as implemented at the time.
 
 **v0.7.1 entry-hook length fix (user-reported: dead Alt+Enter + stretched
 maximize on the 2020-gen copies):** the profile struct declared
