@@ -18,6 +18,11 @@ namespace {
 
 bool g_resizeEnabled = false;
 ResizeState g_resizeState;
+DWORD g_lastFlipTick = 0;
+// Set when the entry hook rolled a failed reset back: the shim must skip the
+// rest of this Flip (return DD_OK like the wrapper's own reset path does)
+// instead of running the frame on restored-but-unverifiable state.
+long g_skipThisFlip = 0;
 
 typedef long (__stdcall* VtMethodFn)(void* self);
 
@@ -65,6 +70,37 @@ ObsState g_obs;
 
 unsigned long readU32(unsigned char* base, uint32_t rva) {
     return *reinterpret_cast<unsigned long*>(base + rva);
+}
+
+// (Re)creates the wrapper's two surfaces from a captured description.
+// Returns null on failure. (Written to return the pointer rather than fill
+// an out-param: this v141 build intermittently mis-parses
+// `IDirect3Surface9*` declarations late in dmFlipEntryWork - see the build
+// note in tools/build-xp.bat.)
+struct Recreator {
+    IDirect3DDevice9* dev;
+    void* recreate(const D3DSURFACE_DESC& d) {
+        void* out = nullptr;
+        HRESULT hr;
+        if (d.Usage & D3DUSAGE_RENDERTARGET) {
+            hr = dev->CreateRenderTarget(
+                d.Width, d.Height, d.Format, d.MultiSampleType,
+                d.MultiSampleQuality, TRUE,
+                reinterpret_cast<IDirect3DSurface9**>(&out), nullptr);
+        } else {
+            hr = dev->CreateOffscreenPlainSurface(
+                d.Width, d.Height, d.Format, d.Pool,
+                reinterpret_cast<IDirect3DSurface9**>(&out), nullptr);
+        }
+        if (FAILED(hr)) {
+            DM_LOG("resize: surface create failed hr=%08lx", long(hr));
+        }
+        return out;
+    }
+};
+
+void storeSurface(unsigned char* base, uint32_t rva, void* p) {
+    *reinterpret_cast<void**>(base + rva) = p;
 }
 
 }  // namespace
@@ -153,6 +189,10 @@ extern "C" void dmFlipEntryWork() {
     }
 
     void*** fontVt = reinterpret_cast<void***>(font);
+    Recreator recreator{dev};
+
+    const long oldPpW = in.bbW;
+    const long oldPpH = in.bbH;
     if (font && fontVt) {
         reinterpret_cast<VtMethodFn>(fontVt[0][kFontOnLostDevice])(font);
     }
@@ -167,48 +207,51 @@ extern "C" void dmFlipEntryWork() {
     *reinterpret_cast<long*>(g_obs.base + g_obs.profile->ppRva + 4) = newH;
     HRESULT hr = dev->Reset(reinterpret_cast<D3DPRESENT_PARAMETERS*>(
         g_obs.base + g_obs.profile->ppRva));
-    DM_LOG("resize: Reset hr=%08lx", long(hr));
 
-    IDirect3DSurface9* s = nullptr;
-    IDirect3DSurface9* n = nullptr;
-    if (dS.Usage & D3DUSAGE_RENDERTARGET) {
-        dev->CreateRenderTarget(dS.Width, dS.Height, dS.Format,
-                                dS.MultiSampleType, dS.MultiSampleQuality,
-                                TRUE, &s, nullptr);
-    } else {
-        dev->CreateOffscreenPlainSurface(dS.Width, dS.Height, dS.Format,
-                                         dS.Pool, &s, nullptr);
+    const bool resetOk = SUCCEEDED(hr);
+    if (!resetOk) {
+        // A failed Reset (e.g. D3DERR_INVALIDCALL because co-loaded mods hold
+        // default-pool D3D9 resources - training/netplay overlay buffers)
+        // has no side effects on the device. Restore the old presentation
+        // parameters; the window still maximizes, just with the DWM-stretched
+        // original backbuffer.
+        DM_LOG("resize: Reset hr=%08lx - rolling back; resize disabled for "
+               "this session",
+               long(hr));
+        *reinterpret_cast<long*>(g_obs.base + g_obs.profile->ppRva) = oldPpW;
+        *reinterpret_cast<long*>(g_obs.base + g_obs.profile->ppRva + 4) = oldPpH;
     }
-    if (dN.Usage & D3DUSAGE_RENDERTARGET) {
-        dev->CreateRenderTarget(dN.Width, dN.Height, dN.Format,
-                                dN.MultiSampleType, dN.MultiSampleQuality,
-                                TRUE, &n, nullptr);
-    } else {
-        dev->CreateOffscreenPlainSurface(dN.Width, dN.Height, dN.Format,
-                                         dN.Pool, &n, nullptr);
-    }
+
+    void* s = recreator.recreate(dS);
+    void* n = recreator.recreate(dN);
+    DM_LOG("resize: surface recreation staging=%d native=%d", s ? 1 : 0,
+           n ? 1 : 0);
     if (s) {
-        *reinterpret_cast<IDirect3DSurface9**>(
-            g_obs.base + g_obs.profile->rendererObjectRva) = s;
+        storeSurface(g_obs.base, g_obs.profile->rendererObjectRva, s);
     }
     if (n) {
-        *reinterpret_cast<IDirect3DSurface9**>(
-            g_obs.base + g_obs.profile->nativeSurfaceRva) = n;
-    }
-    if (!s || !n) {
-        DM_LOG("resize: surface recreation incomplete (staging=%d native=%d)",
-               s ? 1 : 0, n ? 1 : 0);
+        storeSurface(g_obs.base, g_obs.profile->nativeSurfaceRva, n);
     }
     if (font && fontVt) {
         reinterpret_cast<VtMethodFn>(fontVt[0][kFontOnResetDevice])(font);
     }
     g_obs.haveDescs = false;
+    if (!resetOk) {
+        g_resizeEnabled = false;
+        g_skipThisFlip = 1;
+    }
 }
 
 extern "C" __declspec(naked) void dmFlipEntryShim() {
     __asm {
         call dmFlipEntryWork
+        cmp dword ptr [g_skipThisFlip], 0
+        jne skip_frame
         jmp dword ptr [g_entryTrampolinePtr]
+    skip_frame:
+        mov dword ptr [g_skipThisFlip], 0
+        xor eax, eax        ; DD_OK
+        ret 0xC             ; return from Flip(this, arg2, arg3) directly
     }
 }
 
@@ -219,6 +262,16 @@ extern "C" void __stdcall dmFinalStretchHook(IDirect3DDevice9* dev,
                                              const RECT* dstRect,
                                              unsigned long filter) {
     ++g_obs.calls;
+
+    // Flip-stall detector: evidence of game-loop pauses (modal move/size
+    // loops, focus loss, blocking waits). Cheap: one tick read per flip.
+    const DWORD nowTick = GetTickCount();
+    if (g_lastFlipTick != 0 && nowTick - g_lastFlipTick > 500) {
+        DM_LOG("stall: %lu ms without a flip (modal move/size loop, focus "
+               "loss, or blocking wait)",
+               unsigned long(nowTick - g_lastFlipTick));
+    }
+    g_lastFlipTick = nowTick;
 
     // Renderer-object globals (verified admission guarantees the layout).
     const unsigned long ppW = readU32(g_obs.base, g_obs.profile->ppRva);

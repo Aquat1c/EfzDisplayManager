@@ -67,3 +67,9 @@ target_link_options(dm_sha256_test PRIVATE "/MAP:../test.map")
 endif()
 enable_testing()
 add_test(NAME sha256_vectors COMMAND dm_sha256_test)
+
+# Coexistence test helper (never shipped): holds a DEFAULT-pool D3D9 texture
+# like the ImGui buffers of training/netplay so DisplayManager's resize
+# rollback can be exercised in a live game.
+add_library(dm_reset_probe SHARED test/reset_probe.cpp)
+set_target_properties(dm_reset_probe PROPERTIES PREFIX "" OUTPUT_NAME "ResetProbe")

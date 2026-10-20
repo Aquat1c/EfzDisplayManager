@@ -2,7 +2,7 @@
 
 ## Feasibility and Revival compatibility assessment
 
-**Prepared for:** Aquat1c / Mykhailo Hudyma  
+**Prepared for:** Aquat1c
 **Investigation date:** 20 October 2026  
 **Scope:** Source review, recovery of prior EFZ documentation, and targeted PE/disassembly verification. This is a feasibility assessment. No display-manager port was implemented or tested in a running game.
 

@@ -26,10 +26,14 @@ struct Config {
                                     // EfzRevival.ini [Global] sizes stay
                                     // authoritative at the original size
     int windowAdjustStyle;          // [Display] WindowAdjustStyle (default 1):
-                                    // add WS_THICKFRAME|WS_MAXIMIZEBOX to the
-                                    // wrapper's window (created fixed-size
-                                    // with a disabled maximize button),
-                                    // preserving the client area
+                                    // enable the maximize box on the
+                                    // wrapper's fixed-size window
+    int windowDragResize;           // [Display] WindowDragResize (default 1):
+                                    // add a sizing border so the window can
+                                    // be dragged; NOTE live drag-resize runs
+                                    // Win32's modal size loop and pauses the
+                                    // game until the drag ends - maximize/
+                                    // restore/snap do not pause
 };
 
 // Reads DisplayManager.ini next to the given module; missing file means

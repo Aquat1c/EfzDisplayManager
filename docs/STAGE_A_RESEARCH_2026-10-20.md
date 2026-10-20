@@ -433,7 +433,40 @@ The v0.2.0 `stage-a-observe` module ran inside the game on 2026-10-20
   runtime geometry (dstRect letterbox values). The observation hook logs all
   of these automatically when they occur.
 
-## 12. Stage A implementation record (v0.2.0 → v0.4.0, 2026-10-20)
+## 12. Stage A implementation record (v0.2.0 → v0.4.x, 2026-10-20)
+
+**v0.4.x coexistence hardening (same day):** live testing with a
+resource-holding probe mod (a D3D9 DEFAULT-pool texture, standing in for the
+ImGui buffers of efz-training-mode / efz_netplay_mod) established the hard
+ecosystem boundary: `IDirect3DDevice9::Reset` returns `D3DERR_INVALIDCALL`
+while any co-loaded mod holds default-pool resources, so backbuffer resize
+is *impossible* alongside those mods until they release resources around
+resets (the cooperation contract: hook Reset, invalidate on pre, rebuild on
+post - their overlays already rebuild after observed resets). Consequences
+implemented and live-verified:
+
+- Resize gates itself off when `efz_training_mode.dll` / `efz_netplay_mod.dll`
+  (or the in-tree `ResetProbe.dll` fixture) is loaded, with an explanatory
+  log; the window still maximizes via the DWM stretch. Verified: probe
+  loaded → graceful disable, game survives maximize/restore.
+- `WindowDragResize` defaults ON (corner-drag requested): live drag runs
+  Win32's modal size loop and pauses the game until mouse-up - inherent,
+  not fixable without WndProc-level pumping (forbidden by the InGameNetplay
+  window-hook contract). A flip-stall detector (>500 ms) now logs any such
+  pause as evidence.
+- Clean run re-verified: style `14ca0000 → 14cf0000` (maximize + drag),
+  maximize resets to 2560x1377 with surface recreation 1/1 and the proper
+  aspect letterbox `adapt: -> (362,0,2198,1377) 1836x1377`; restore returns
+  to Revival's configured 1280x960. Evidence:
+  [evidence/runtime-window-resize-v2.txt](evidence/runtime-window-resize-v2.txt).
+- Toolchain note: the v141 MSBuild CL environment intermittently emitted
+  phantom `C2065: 'IDirect3Surface9' undeclared` on valid code (an exact
+  replica of its command line compiles clean; single-file invocations are
+  deterministic). `tools/build-xp.bat` (direct cl, one TU per invocation) is
+  the authoritative build; the code also avoids late-function
+  `IDirect3Surface9*` declarations in dmFlipEntryWork as belt-and-braces.
+
+The sections below describe v0.2.0/v0.3.0 as implemented at those versions.
 
 **v0.4.0 `window-resize`:** the window is now sizable and maximizable, and the
 backbuffer follows user-driven size changes while Revival's

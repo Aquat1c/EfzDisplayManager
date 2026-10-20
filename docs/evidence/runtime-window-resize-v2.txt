@@ -1,0 +1,38 @@
+[18:56:05.433] EFZ DisplayManager v0.4.0 (window-resize): attached, deferring to bootstrap worker
+[18:56:05.436] admission: DDRAW.dll loaded at 71a90000 (D:\EFZ_FULLPACK\DDRAW.dll)
+[18:56:05.442] admission: file SHA-256: 0e072342d87d240e18969bc3663032e0e370eaba24d1fbb8e6c1f6216ad9f603
+[18:56:05.442] admission: profile accepted: renderer-split Revival 1.02j (2026-08-02) (PE timestamp 6a6f1795)
+[18:56:05.693] bootstrap: wrapper device 08a2a240, native surface 08a25d40
+[18:56:05.899] window: style 14ca0000 -> 14cf0000 (maximize enabled + drag-resize (pauses game during drag), client preserved)
+[18:56:05.933] detour: installed 6-byte hook at 71ab79c0 (target 73712630)
+[18:56:05.944] surfaces: native 640x480, backbuffer 1280x960 (src 08a25d40 dst 08a25a20)
+[18:56:05.944] flip #1: dstRect=NULL(full) filter=2 pp=1280x960 borderless=0 <changed>
+[18:56:05.944] adapt: -> (0,0,1280,960) 1280x960 filter=2 (was 2)
+[18:56:05.959] flip #2: dstRect=NULL(full) filter=2 pp=1280x960 borderless=0
+[18:56:05.959] adapt: -> (0,0,1280,960) 1280x960 filter=2 (was 2)
+[18:56:05.964] detour: installed 7-byte entry hook at 71ab7860 (trampoline 73716010)
+[18:56:05.964] bootstrap: hook active (observe + adapt: mode=0 scale=0 custom=640x480 filter=0 bg=000000)
+[18:56:05.976] flip #3: dstRect=NULL(full) filter=2 pp=1280x960 borderless=0
+[18:56:05.976] adapt: -> (0,0,1280,960) 1280x960 filter=2 (was 2)
+[18:56:05.991] flip #4: dstRect=NULL(full) filter=2 pp=1280x960 borderless=0
+[18:56:05.991] adapt: -> (0,0,1280,960) 1280x960 filter=2 (was 2)
+[18:56:06.007] flip #5: dstRect=NULL(full) filter=2 pp=1280x960 borderless=0
+[18:56:06.007] adapt: -> (0,0,1280,960) 1280x960 filter=2 (was 2)
+[18:56:06.023] flip #6: dstRect=NULL(full) filter=2 pp=1280x960 borderless=0
+[18:56:06.023] adapt: -> (0,0,1280,960) 1280x960 filter=2 (was 2)
+[18:56:13.894] resize: client 2560x1377 stable; backbuffer 1280x960 -> 2560x1377
+[18:56:13.896] resize: surface recreation staging=1 native=1
+[18:56:13.896] surfaces: native 640x480, backbuffer 2560x1377 (src 101ba5c0 dst 101ba3e0)
+[18:56:13.896] flip #509: dstRect=NULL(full) filter=2 pp=2560x1377 borderless=0 <changed>
+[18:56:13.896] flip #509: native/device pointer changed (post-reset recreation)
+[18:56:13.896] adapt: -> (362,0,2198,1377) 1836x1377 filter=2 (was 2)
+[18:56:15.317] flip #600: dstRect=NULL(full) filter=2 pp=2560x1377 borderless=0
+[18:56:15.317] adapt: -> (362,0,2198,1377) 1836x1377 filter=2 (was 2)
+[18:56:21.829] resize: client 640x480 stable; backbuffer 2560x1377 -> 1280x960
+[18:56:21.831] resize: surface recreation staging=1 native=1
+[18:56:21.831] surfaces: native 640x480, backbuffer 1280x960 (src 11b69b40 dst 11b6a040)
+[18:56:21.831] flip #992: dstRect=NULL(full) filter=2 pp=1280x960 borderless=0 <changed>
+[18:56:21.831] flip #992: native/device pointer changed (post-reset recreation)
+[18:56:21.831] adapt: -> (0,0,1280,960) 1280x960 filter=2 (was 2)
+[18:56:25.084] flip #1200: dstRect=NULL(full) filter=2 pp=1280x960 borderless=0
+[18:56:25.084] adapt: -> (0,0,1280,960) 1280x960 filter=2 (was 2)

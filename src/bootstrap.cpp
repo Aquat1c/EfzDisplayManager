@@ -127,7 +127,8 @@ DWORD WINAPI bootstrapThread(void* param) {
         HWND hwnd = *reinterpret_cast<HWND*>(base + profile->hwndRva);
         if (hwnd) {
             LONG_PTR style = GetWindowLongPtrA(hwnd, GWL_STYLE);
-            LONG_PTR want = style | WS_THICKFRAME | WS_MAXIMIZEBOX;
+            LONG_PTR want = style | WS_MAXIMIZEBOX;
+            if (cfg.windowDragResize) want |= WS_THICKFRAME;
             if (want != style) {
                 RECT rc;
                 GetClientRect(hwnd, &rc);
@@ -137,10 +138,13 @@ DWORD WINAPI bootstrapThread(void* param) {
                              rc.bottom - rc.top,
                              SWP_NOMOVE | SWP_NOZORDER | SWP_NOOWNERZORDER |
                                  SWP_FRAMECHANGED | SWP_NOACTIVATE);
-                DM_LOG("window: style %08lx -> %08lx (sizable + maximize "
-                       "enabled, client preserved)",
+                DM_LOG("window: style %08lx -> %08lx (maximize enabled%s, "
+                       "client preserved)",
                        static_cast<unsigned long>(style),
-                       static_cast<unsigned long>(want));
+                       static_cast<unsigned long>(want),
+                       cfg.windowDragResize
+                           ? " + drag-resize (pauses game during drag)"
+                           : "");
             }
         }
     }
@@ -165,7 +169,29 @@ DWORD WINAPI bootstrapThread(void* param) {
     // point where a voluntary reset is safe (no backbuffer reference held,
     // and every surface pointer is reloaded from globals afterward, so the
     // resizing frame renders normally at the new size).
-    setResizeConfig(cfg.resizeBackBuffer != 0);
+    bool deviceResourceModLoaded = false;
+    if (cfg.resizeBackBuffer) {
+        // Mods with D3D9 default-pool resources (ImGui buffers) make
+        // IDirect3DDevice9::Reset return D3DERR_INVALIDCALL by design; a
+        // backbuffer resize is impossible until those mods release their
+        // resources around resets. Gate off instead of attempting it.
+        static const char* kDeviceResourceMods[] = {
+            "efz_training_mode.dll", "efz_netplay_mod.dll",
+            "ResetProbe.dll"  // in-tree coexistence test fixture
+        };
+        for (int m = 0; m < 3; ++m) {
+            if (GetModuleHandleA(kDeviceResourceMods[m])) {
+                deviceResourceModLoaded = true;
+                DM_LOG("coexist: %s is loaded and holds D3D9 device "
+                       "resources; backbuffer resize disabled for this "
+                       "session (maximize falls back to the DWM stretch). "
+                       "Reset-aware resource handling in that mod would "
+                       "enable resizing alongside it.",
+                       kDeviceResourceMods[m]);
+            }
+        }
+    }
+    setResizeConfig(cfg.resizeBackBuffer != 0 && !deviceResourceModLoaded);
     if (cfg.resizeBackBuffer) {
         prepareEntryTrampoline();
         unsigned char* entrySite = base + profile->flipEntryRva;

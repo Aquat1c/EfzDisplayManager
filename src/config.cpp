@@ -44,6 +44,7 @@ Config loadConfig(HMODULE module) {
     c.backgroundColor = 0xFF000000UL;
     c.resizeBackBuffer = 1;
     c.windowAdjustStyle = 1;
+    c.windowDragResize = 1;
 
     char path[MAX_PATH];
     if (GetModuleFileNameA(module, path, MAX_PATH) == 0) return c;
@@ -89,6 +90,8 @@ Config loadConfig(HMODULE module) {
         GetPrivateProfileIntA("Display", "ResizeBackBuffer", c.resizeBackBuffer, ini);
     c.windowAdjustStyle =
         GetPrivateProfileIntA("Display", "WindowAdjustStyle", c.windowAdjustStyle, ini);
+    c.windowDragResize =
+        GetPrivateProfileIntA("Display", "WindowDragResize", c.windowDragResize, ini);
 
     GetPrivateProfileStringA("Display", "BackgroundColor", "000000", text,
                              sizeof(text), ini);
