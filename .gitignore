@@ -27,3 +27,4 @@ CMakeUserPresets.json
 # OS noise
 Thumbs.db
 desktop.ini
+*.map
