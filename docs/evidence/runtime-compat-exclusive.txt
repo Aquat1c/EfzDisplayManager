@@ -1,0 +1,37 @@
+[20:21:35.040] EFZ DisplayManager v0.6.0 (exclusive-fullscreen): attached, deferring to bootstrap worker
+[20:21:35.043] admission: DDRAW.dll loaded at 71a90000 (D:\EFZ_FULLPACK\DDRAW.dll)
+[20:21:35.049] admission: file SHA-256: 0e072342d87d240e18969bc3663032e0e370eaba24d1fbb8e6c1f6216ad9f603
+[20:21:35.049] admission: profile accepted: renderer-split Revival 1.02j (2026-08-02) (PE timestamp 6a6f1795)
+[20:21:35.300] bootstrap: wrapper device 08b7c320, native surface 08b4dea0
+[20:21:35.300] compat: in-place vtable hooks installed (vt=08b7f27c tex=737119d0)
+[20:21:35.506] window: style 14ca0000 -> 14cf0000 (maximize enabled + drag-resize (pauses game during drag), client preserved)
+[20:21:35.539] detour: installed 6-byte hook at 71ab79c0 (target 73713890)
+[20:21:35.539] coexist: ResetProbe.dll is loaded and holds D3D9 device resources; backbuffer resize disabled for this session (maximize falls back to the DWM stretch). Reset-aware resource handling in that mod would enable resizing alongside it.
+[20:21:35.539] window: Alt+Enter now owned by DisplayManager (wrapper handler neutralized)
+[20:21:35.541] surfaces: native 640x480, backbuffer 1280x960 (src 08b4dea0 dst 08bac280)
+[20:21:35.542] shaders: pipeline ready (filter=1 sharp=1 xbr=1)
+[20:21:35.542] flip #1: dstRect=NULL(full) filter=2 pp=1280x960 borderless=0 <changed>
+[20:21:35.542] adapt: -> (0,0,1280,960) 1280x960 filter=100 (was 2)
+[20:21:35.557] flip #2: dstRect=NULL(full) filter=2 pp=1280x960 borderless=0
+[20:21:35.557] adapt: -> (0,0,1280,960) 1280x960 filter=100 (was 2)
+[20:21:35.570] detour: installed 7-byte entry hook at 71ab7860 (trampoline 73719020)
+[20:21:35.572] flip #3: dstRect=NULL(full) filter=2 pp=1280x960 borderless=0
+[20:21:35.572] adapt: -> (0,0,1280,960) 1280x960 filter=100 (was 2)
+[20:21:35.587] flip #4: dstRect=NULL(full) filter=2 pp=1280x960 borderless=0
+[20:21:35.587] adapt: -> (0,0,1280,960) 1280x960 filter=100 (was 2)
+[20:21:35.602] flip #5: dstRect=NULL(full) filter=2 pp=1280x960 borderless=0
+[20:21:35.602] adapt: -> (0,0,1280,960) 1280x960 filter=100 (was 2)
+[20:21:35.618] flip #6: dstRect=NULL(full) filter=2 pp=1280x960 borderless=0
+[20:21:35.618] adapt: -> (0,0,1280,960) 1280x960 filter=100 (was 2)
+[20:21:41.570] fullscreen: exclusive mode requested at startup (F11/Alt+Enter toggles)
+[20:21:41.570] bootstrap: hook active (observe + adapt: mode=0 scale=0 custom=640x480 filter=100 bg=000000)
+[20:21:41.582] fullscreen: entering exclusive 2560x1440@240hz fmt=22 interval=immediate
+[20:21:41.582] compat: force-released 1 foreign device resources
+[20:21:41.645] fullscreen-enter: surface recreation staging=1 native=1
+[20:21:41.645] shaders: pipeline ready (filter=1 sharp=1 xbr=1)
+[20:21:41.646] surfaces: native 640x480, backbuffer 2560x1440 (src 102d3c60 dst 102d34e0)
+[20:21:41.646] flip #387: dstRect=NULL(full) filter=2 pp=2560x1440 borderless=0 <changed>
+[20:21:41.646] flip #387: native/device pointer changed (post-reset recreation)
+[20:21:41.646] adapt: -> (320,0,2240,1440) 1920x1440 filter=100 (was 2)
+[20:21:44.961] flip #600: dstRect=NULL(full) filter=2 pp=2560x1440 borderless=0
+[20:21:44.961] adapt: -> (320,0,2240,1440) 1920x1440 filter=100 (was 2)

@@ -16,13 +16,18 @@ struct Config {
                                // multiple (default 0 = largest that fits)
     int customWidth;           // [Display] CustomWidth (default 640)
     int customHeight;          // [Display] CustomHeight (default 480)
+    int sharpness;               // [Display] Sharpness 10-40 (=1.0-4.0,
+                                  // default 20); Sharp filter only
     unsigned long filter;      // [Display] Filter: Linear (keep the wrapper's
-                               // value) | Point (override) (default Linear)
+                               // value) | Point | Sharp | xBR (default
+                               // Linear)
     unsigned long backgroundColor;  // [Display] BackgroundColor RRGGBB hex
                                     // (default 000000)
     int borderlessFullscreen;      // [Display] FullscreenMode: 0 = the
                                   // Alt+Enter/F11 target is EXCLUSIVE
                                   // fullscreen (default), 1 = BORDERLESS
+    int fullscreenDelayMs;        // [Display] test/automation: delay before
+                                  // the startup exclusive request (ms)
     int fullscreen;               // [Display] Fullscreen (default 0): start
                                   // in exclusive fullscreen at the desktop
                                   // mode (F11 toggles)
@@ -31,6 +36,9 @@ struct Config {
     long vsync;                   // [Display] VSync: -1 keep the wrapper's
                                   // presentation interval, 0 immediate,
                                   // 1 vsync (default -1)
+    int compatLayer;              // [Display] CompatLayer (default 1):
+                                  // track+force-release foreign device
+                                  // resources around OUR resets
     int resizeBackBuffer;           // [Display] ResizeBackBuffer (default 1):
                                     // make the backbuffer follow window
                                     // maximize/restore/resize; Revival's

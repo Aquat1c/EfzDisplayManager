@@ -48,20 +48,22 @@ Output: `build-xp/Release/DisplayManager.dll` (PE32, OS 5.01).
 | `Mode` | FitToScreen | `FitToScreen` / `IntegerScaling` / `CustomResolution` |
 | `IntegerScale` | 0 | integer multiple; 0 = largest that fits |
 | `CustomWidth/Height` | 640/480 | CustomResolution output size |
-| `Filter` | Linear | `Linear` (wrapper's) / `Point` |
+| `Filter` | Linear | `Linear` / `Point` / `Sharp` / `xBR` (shader upscaling) |
 | `BackgroundColor` | 000000 | letterbox border color (RRGGBB) |
 | `Fullscreen` | 0 | start in exclusive fullscreen (desktop mode) |
-| `FullscreenMode` | 0 | Alt+Enter/F11 target: 0 exclusive, 1 borderless |
+| `FullscreenMode` | 1 | Alt+Enter/F11 target: 0 exclusive, 1 borderless |
 | `FullscreenHotkey` | 1 | F11 (and Alt+Enter) toggle the configured mode |
+| `Sharpness` | 20 | Sharp filter strength 10-40 (=1.0-4.0) |
+| `CompatLayer` | 1 | force-release foreign device resources around OUR resets (exclusive/resize alongside training/netplay) |
 | `VSync` | -1 | -1 keep wrapper interval in windowed, IMMEDIATE in exclusive / 0 immediate / 1 vsync |
 | `WindowAdjustStyle` | 1 | enable maximize box on the fixed-size window |
 | `WindowDragResize` | 1 | sizing border; drag pauses the game while held |
 | `ResizeBackBuffer` | 1 | backbuffer follows maximize/restore/resize |
 
-Notes: exclusive fullscreen and backbuffer resize disable themselves for the
-session while `efz_training_mode.dll` / `efz_netplay_mod.dll` (or any mod
-holding D3D9 default-pool resources) is loaded - `Reset` is impossible then;
-make those mods reset-aware to enable both alongside them.
+Notes: the CompatLayer (default on) force-releases foreign D3D9 default-pool
+resources around DisplayManager's own resets, so exclusive fullscreen and
+backbuffer resize work alongside training/netplay-style mods. It disables
+itself for the session only if the layer cannot install.
 
 ## Install
 

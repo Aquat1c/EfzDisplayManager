@@ -42,7 +42,9 @@ Config loadConfig(HMODULE module) {
     c.customHeight = 480;
     c.filter = 0;                  // 0 = keep the wrapper's filter
     c.backgroundColor = 0xFF000000UL;
-    c.borderlessFullscreen = 0;
+    c.borderlessFullscreen = 1;  // borderless default per user preference
+    c.compatLayer = 1;
+    c.fullscreenDelayMs = 0;
     c.fullscreen = 0;
     c.fullscreenHotkey = 1;
     c.vsync = -1;
@@ -88,8 +90,19 @@ Config loadConfig(HMODULE module) {
                              ini);
     if (lstrcmpiA(text, "Point") == 0) {
         c.filter = 1;  // D3DTEXF_POINT
+    } else if (lstrcmpiA(text, "Sharp") == 0) {
+        c.filter = 100;  // shader pipeline: sharp-bilinear
+    } else if (lstrcmpiA(text, "xBR") == 0) {
+        c.filter = 101;  // shader pipeline: xBR-lv2
     }
+    c.sharpness = GetPrivateProfileIntA("Display", "Sharpness", 20, ini);
+    if (c.sharpness < 10) c.sharpness = 10;
+    if (c.sharpness > 40) c.sharpness = 40;
 
+    c.fullscreenDelayMs = GetPrivateProfileIntA("Display", "FullscreenDelayMs",
+                                                c.fullscreenDelayMs, ini);
+    c.compatLayer = GetPrivateProfileIntA("Display", "CompatLayer",
+                                          c.compatLayer, ini);
     c.borderlessFullscreen = GetPrivateProfileIntA(
         "Display", "FullscreenMode", c.borderlessFullscreen, ini);
     if (c.borderlessFullscreen != 0) c.borderlessFullscreen = 1;

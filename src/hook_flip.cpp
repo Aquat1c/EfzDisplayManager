@@ -3,11 +3,13 @@
 #include <windows.h>
 #include <d3d9.h>
 
+#include "compat.h"
 #include "format.h"
 #include "fullscreen.h"
 #include "geometry.h"
 #include "logging.h"
 #include "resize.h"
+#include "shaders.h"
 
 // Trampoline for the Flip-entry detour: original 7-byte prologue + jmp back.
 extern "C" unsigned char g_entryTrampoline[16] = {0xCC};
@@ -154,6 +156,16 @@ bool resetSequence(unsigned char* fallbackPp, const char* reason) {
     storeSurface(g_obs.base, g_obs.profile->rendererObjectRva, nullptr);
     storeSurface(g_obs.base, g_obs.profile->nativeSurfaceRva, nullptr);
 
+    // Shader pipeline owns default-pool resources too; and the compat layer
+    // force-releases FOREIGN ones (training/netplay overlays) so the Reset
+    // can succeed alongside them.
+    shadersReleaseResources();
+    const int foreignReleased = compatReleaseForeignResources();
+    if (foreignReleased) {
+        DM_LOG("compat: force-released %d foreign device resources",
+               foreignReleased);
+    }
+
     unsigned char* pp = g_obs.base + g_obs.profile->ppRva;
     HRESULT hr = dev->Reset(reinterpret_cast<D3DPRESENT_PARAMETERS*>(pp));
     const bool ok = SUCCEEDED(hr);
@@ -171,6 +183,12 @@ bool resetSequence(unsigned char* fallbackPp, const char* reason) {
         reinterpret_cast<VtMethodFn>(fontVt[0][kFontOnResetDevice])(font);
     }
     g_obs.haveDescs = false;
+    if (ok) {
+        IDirect3DDevice9* dev2 = reinterpret_cast<IDirect3DDevice9*>(dev);
+        if (!shadersCreateResources(dev2, int(dS.Width), int(dS.Height))) {
+            DM_LOG("shaders: unavailable after reset; using StretchRect");
+        }
+    }
     return ok;
 }
 
@@ -556,6 +574,16 @@ extern "C" void __stdcall dmFinalStretchHook(IDirect3DDevice9* dev,
             DM_LOG("surfaces: native %ux%u, backbuffer %ux%u (src %p dst %p)",
                    g_obs.srcW, g_obs.srcH, g_obs.bbW, g_obs.bbH, src, dst);
         }
+        if (ok && !shadersActive()) {
+            // Lazily create the shader pipeline once real dims are known.
+            IDirect3DDevice9* dev0 = reinterpret_cast<IDirect3DDevice9*>(
+                deviceGlobal);
+            if (dev0 && !shadersCreateResources(dev0, int(g_obs.srcW),
+                                                int(g_obs.srcH))) {
+                // Configure() said a filter was wanted but creation failed;
+                // shadersConfigure is only called with None afterwards.
+            }
+        }
     }
 
     const bool rectNull = dstRect == nullptr;
@@ -643,6 +671,10 @@ extern "C" void __stdcall dmFinalStretchHook(IDirect3DDevice9* dev,
                        static_cast<D3DCOLOR>(g_obs.adapt.backgroundColor));
     }
 
+    if (shadersActive() &&
+        shadersDrawUpscaled(dev, src, dst, &outRect)) {
+        return;
+    }
     dev->StretchRect(src, srcRect, dst, &outRect,
                      static_cast<D3DTEXTUREFILTERTYPE>(effectiveFilter));
 }

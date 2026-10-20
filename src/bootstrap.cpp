@@ -8,6 +8,7 @@
 
 #include <windows.h>
 
+#include "compat.h"
 #include "config.h"
 #include "detour.h"
 #include "hook_flip.h"
@@ -15,6 +16,7 @@
 #include "profiles.h"
 #include "hook_flip.h"
 #include "sha256.h"
+#include "shaders.h"
 #include "version.h"
 
 namespace dm {
@@ -122,6 +124,15 @@ DWORD WINAPI bootstrapThread(void* param) {
     DM_LOG("bootstrap: wrapper device %p, native surface %p",
            device, *reinterpret_cast<void**>(base + profile->nativeSurfaceRva));
 
+    // Compat layer first: track foreign DEFAULT-pool device resources so
+    // OUR resets can force-release them (exclusive/resize alongside
+    // training/netplay overlays). Best effort; on failure the mods gate
+    // stays active.
+    if (cfg.compatLayer &&
+        !compatInstall(reinterpret_cast<IDirect3DDevice9*>(device))) {
+        DM_LOG("bootstrap: compat layer unavailable; mods gate stays active");
+    }
+
     // 3b. Make the window sizable and maximizable. The wrapper creates it as
     // WS_VISIBLE|WS_CAPTION|WS_SYSMENU|WS_MINIMIZEBOX (fixed-size, grayed
     // maximize button); add WS_THICKFRAME|WS_MAXIMIZEBOX while preserving the
@@ -153,6 +164,15 @@ DWORD WINAPI bootstrapThread(void* param) {
         }
     }
 
+    // Shader upscaling (Sharp/xBR) when configured.
+    {
+        dm::ShaderConfig sc;
+        if (cfg.filter == 100) sc.filter = dm::ShaderFilter::Sharp;
+        if (cfg.filter == 101) sc.filter = dm::ShaderFilter::Xbr;
+        sc.sharpness = float(cfg.sharpness) / 10.0f;
+        dm::shadersConfigure(sc);
+    }
+
     // 4. Install the observation/adaptation hook.
     HookConfig hc;
     hc.logFirst = cfg.logFirst;
@@ -174,6 +194,7 @@ DWORD WINAPI bootstrapThread(void* param) {
     // and every surface pointer is reloaded from globals afterward, so the
     // resizing frame renders normally at the new size).
     bool deviceResourceModLoaded = false;
+    const bool compatReady = compatActive();
     if (cfg.resizeBackBuffer) {
         // Mods with D3D9 default-pool resources (ImGui buffers) make
         // IDirect3DDevice9::Reset return D3DERR_INVALIDCALL by design; a
@@ -195,20 +216,17 @@ DWORD WINAPI bootstrapThread(void* param) {
             }
         }
     }
-    setResizeConfig(cfg.resizeBackBuffer != 0 && !deviceResourceModLoaded);
-    if (cfg.fullscreen && deviceResourceModLoaded) {
+    // With the compat layer active, resets force-release foreign resources,
+    // so the gate only applies when the layer is unavailable/disabled.
+    setResizeConfig(cfg.resizeBackBuffer != 0 &&
+                    (!deviceResourceModLoaded || compatReady));
+    if (cfg.fullscreen && deviceResourceModLoaded && !compatReady) {
         DM_LOG("coexist: exclusive fullscreen also disabled (device-resource "
                "mod loaded)");
     }
-    setFullscreenConfig(!deviceResourceModLoaded, cfg.fullscreenHotkey != 0,
-                        cfg.vsync, cfg.fullscreen != 0,
-                        cfg.borderlessFullscreen != 0);
-    if (!deviceResourceModLoaded && cfg.fullscreen) {
-        DM_LOG("fullscreen: %s mode requested at startup (F11/Alt+Enter "
-               "toggles)",
-               cfg.borderlessFullscreen ? "borderless" : "exclusive");
-    }
-
+    setFullscreenConfig(!deviceResourceModLoaded || compatReady,
+                        cfg.fullscreenHotkey != 0,
+                        cfg.vsync, false, cfg.borderlessFullscreen != 0);
     // Own Alt+Enter: rewrite the wrapper WndProc's keycode compare to an
     // unpressable key so its stock borderless toggle cannot race ours. Byte
     // verified against the profile; left alone on mismatch (both toggles
@@ -246,6 +264,14 @@ DWORD WINAPI bootstrapThread(void* param) {
                    "(final-blit hook stays active)");
             setResizeConfig(false);
         }
+    }
+    if (cfg.fullscreen && (!deviceResourceModLoaded || compatReady)) {
+        if (cfg.fullscreenDelayMs > 0) Sleep(cfg.fullscreenDelayMs);
+        setFullscreenConfig(true, cfg.fullscreenHotkey != 0, cfg.vsync, true,
+                            cfg.borderlessFullscreen != 0);
+        DM_LOG("fullscreen: %s mode requested at startup (F11/Alt+Enter "
+               "toggles)",
+               cfg.borderlessFullscreen ? "borderless" : "exclusive");
     }
     DM_LOG("bootstrap: hook active (observe + adapt: mode=%d scale=%d "
            "custom=%dx%d filter=%lu bg=%06lx)",

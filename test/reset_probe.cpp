@@ -64,7 +64,9 @@ static DWORD WINAPI probeThread(void*) {
         L("ResetProbe: device global never appeared");
         return 0;
     }
-    L("ResetProbe: device %p", dev);
+    L("ResetProbe: device %p - settling 3s so the compat tracking"
+      " hooks install first", dev);
+    Sleep(3000);
 
     IDirect3DTexture9* tex = nullptr;
     HRESULT hr = dev->CreateTexture(64, 64, 1, 0, D3DFMT_A8R8G8B8,

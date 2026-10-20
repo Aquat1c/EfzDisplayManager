@@ -8,6 +8,11 @@
 
 #include <cstddef>
 
+// The float-using translation units (shaders, geometry) reference this CRT
+// startup symbol; in a CRT-free link it must be satisfied manually. It is
+// defined with a distinct name and aliased via the linker.
+extern "C" int _dm_fltused = 1;
+
 // Force the compiler to treat these as plain functions, not intrinsics, so
 // the definitions below are legal.
 #pragma function(memcpy, memset, memmove, strlen)

@@ -433,7 +433,39 @@ The v0.2.0 `stage-a-observe` module ran inside the game on 2026-10-20
   runtime geometry (dstRect letterbox values). The observation hook logs all
   of these automatically when they occur.
 
-## 12. Stage A implementation record (v0.2.0 → v0.6.0, 2026-10-20)
+## 12. Stage A implementation record (v0.2.0 → v0.7.0, 2026-10-20)
+
+**v0.7.0 shader scaling port + reset compatibility layer** (creator
+permission granted; ported from SokuDisplayManager MIT source):
+
+- **Sharp-bilinear and xBR-lv2 upscaling** (`Filter=Sharp|xBR`): capture
+  texture (native-size RT), pixel-shader quad draw with the -0.5 half-pixel
+  offset, D3DSBT_ALL state-block save/restore, and the 64x64 scene-guard
+  render target bound while the extra scene brackets run so co-loaded mods'
+  inline EndScene hooks draw into the throwaway guard (upstream's exact
+  strategy). Shader bytecode lifted verbatim (ps_2_0 / ps_2_b); `Sharpness`
+  INI 10-40 (=1.0-4.0, default 20); xBR uses upstream defaults. Any failure
+  falls back to the StretchRect path (pipeline-disabled logs). Live run:
+  pipeline ready + first sharp draw firing, game stable.
+- **Reset compatibility layer** (`CompatLayer=1`, default on): per-instance
+  IN-PLACE patch of the device's heap vtable (creation slots only - modern
+  d3d9 gives each device its own heap vtable; a full vtable-pointer swap
+  crashed, in-place patching works). Every DEFAULT-pool resource anyone
+  creates through the wrapper's device is tracked; right before OUR resets
+  they are force-released so `IDirect3DDevice9::Reset` succeeds even while
+  training/netplay-style mods hold device resources. Our own shader
+  resources are excluded via tracking suspension.
+- Deterministic live proof (evidence: runtime-compat-exclusive.txt):
+  ResetProbe holding a DEFAULT-pool texture + startup exclusive 3s later ->
+  `compat: force-released 1 foreign device resources` -> Reset SUCCEEDED
+  (recreation 1/1, shaders rebuilt, exclusive entered) where v0.4-v0.6 got
+  D3DERR_INVALIDCALL. The mods gate now only applies when the layer is
+  unavailable.
+- `FullscreenMode=1` (borderless) is now the default per user preference.
+- `FullscreenDelayMs` INI: automation/testing delay before the startup
+  exclusive request.
+
+The sections below describe earlier versions as implemented at the time.
 
 **v0.6.0 Alt+Enter ownership + borderless letterbox fix:**
 
