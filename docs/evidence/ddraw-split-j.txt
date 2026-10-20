@@ -1,0 +1,288 @@
+file: D:/EFZ_FULLPACK/Ddraw.dll
+profile: renderer-split Revival 1.02j (2026-08-02)
+SHA-256: 0e072342d87d240e18969bc3663032e0e370eaba24d1fbb8e6c1f6216ad9f603
+hash ok
+image base: 0x64c00000  PE timestamp: 0x6a6f1795
+
+=== exports ===
+  0x0230a0 DirectDrawCreate
+  0x023180 EfzRender_addBox
+  0x0231d0 EfzRender_addText
+  0x0233a0 EfzRender_clearBoxes
+  0x0233b0 EfzRender_clearText
+  0x0233c0 EfzRender_initTextRender
+  0x0233d0 EfzRender_isActiveWindow
+  0x0233e0 EfzRender_setRenderText
+  0x023400 EfzRender_toggleFullScreen
+  0x0cf780 getEfzInput
+  0x0cf790 getEfzTimer  <-- profile timer export
+
+=== global references between Flip and Present ===
+  native_surface   RVA 0xdf284: referenced at 0x278c5  [ok]
+  device_ptr       RVA 0xdf2c4: referenced at 0x27874  [ok]
+  present_params   RVA 0xdf28c: referenced at 0x27ad5  [ok]
+
+=== disassembly ===
+
+--- Flip entry (RVA 0x27860, VA 0x64c27860) ---
+  0x027860: 8d4c2404             lea ecx, [esp + 4]
+  0x027864: 83e4f8               and esp, 0xfffffff8
+  0x027867: ff71fc               push dword ptr [ecx - 4]
+  0x02786a: 55                   push ebp
+  0x02786b: 89e5                 mov ebp, esp
+  0x02786d: 57                   push edi
+  0x02786e: 56                   push esi
+  0x02786f: 53                   push ebx
+  0x027870: 51                   push ecx
+  0x027871: 83ec74               sub esp, 0x74
+  0x027874: 8b1dc4f2cd64         mov ebx, dword ptr [0x64cdf2c4]   ; abs 0x64cdf2c4 (RVA 0xdf2c4)
+  0x02787a: 8b11                 mov edx, dword ptr [ecx]
+  0x02787c: 8b03                 mov eax, dword ptr [ebx]
+  0x02787e: 895598               mov dword ptr [ebp - 0x68], edx
+  0x027881: c744241800000000     mov dword ptr [esp + 0x18], 0
+  0x027889: c74424140000803f     mov dword ptr [esp + 0x14], 0x3f800000
+  0x027891: c7442410000000ff     mov dword ptr [esp + 0x10], 0xff000000
+  0x027899: c744240c01000000     mov dword ptr [esp + 0xc], 1
+  0x0278a1: c744240800000000     mov dword ptr [esp + 8], 0
+  0x0278a9: c744240400000000     mov dword ptr [esp + 4], 0
+  0x0278b1: 891c24               mov dword ptr [esp], ebx
+  0x0278b4: ff90ac000000         call dword ptr [eax + 0xac]
+  0x0278ba: 8b03                 mov eax, dword ptr [ebx]
+  0x0278bc: 8b3d80f2cd64         mov edi, dword ptr [0x64cdf280]   ; abs 0x64cdf280 (RVA 0xdf280)
+  0x0278c2: 83ec1c               sub esp, 0x1c
+  0x0278c5: 8b3584f2cd64         mov esi, dword ptr [0x64cdf284]   ; abs 0x64cdf284 (RVA 0xdf284)
+  0x0278cb: 891c24               mov dword ptr [esp], ebx
+  0x0278ce: ff90a4000000         call dword ptr [eax + 0xa4]
+  0x0278d4: 8b5598               mov edx, dword ptr [ebp - 0x68]
+  0x0278d7: 83ec04               sub esp, 4
+  0x0278da: 8b421c               mov eax, dword ptr [edx + 0x1c]
+  0x0278dd: 89442410             mov dword ptr [esp + 0x10], eax
+  0x0278e1: 8b4218               mov eax, dword ptr [edx + 0x18]
+  0x0278e4: 897c2408             mov dword ptr [esp + 8], edi
+  0x0278e8: 8944240c             mov dword ptr [esp + 0xc], eax
+  0x0278ec: 8b4214               mov eax, dword ptr [edx + 0x14]
+  0x0278ef: 89442404             mov dword ptr [esp + 4], eax
+  0x0278f3: 8b4210               mov eax, dword ptr [edx + 0x10]
+  0x0278f6: 8b400c               mov eax, dword ptr [eax + 0xc]
+  0x0278f9: 890424               mov dword ptr [esp], eax
+  0x0278fc: e8fffdffff           call 0x64c27700
+  0x027901: 8b15ecf2cd64         mov edx, dword ptr [0x64cdf2ec]   ; abs 0x64cdf2ec (RVA 0xdf2ec)
+  0x027907: 8b03                 mov eax, dword ptr [ebx]
+  0x027909: c744241000000000     mov dword ptr [esp + 0x10], 0
+  0x027911: 8974240c             mov dword ptr [esp + 0xc], esi
+  0x027915: 89542414             mov dword ptr [esp + 0x14], edx
+  0x027919: c744240800000000     mov dword ptr [esp + 8], 0
+  0x027921: 897c2404             mov dword ptr [esp + 4], edi
+  0x027925: 891c24               mov dword ptr [esp], ebx
+  0x027928: ff9088000000         call dword ptr [eax + 0x88]
+  0x02792e: 8b03                 mov eax, dword ptr [ebx]
+  0x027930: 83ec18               sub esp, 0x18
+  0x027933: 891c24               mov dword ptr [esp], ebx
+  0x027936: ff90a8000000         call dword ptr [eax + 0xa8]
+  0x02793c: b980f2cd64           mov ecx, 0x64cdf280
+  0x027941: 83ec04               sub esp, 4
+  0x027944: e8e7dc0000           call 0x64c35630
+  0x027949: b980f2cd64           mov ecx, 0x64cdf280
+  0x02794e: e8bdeb0000           call 0x64c36510
+  0x027953: 8b03                 mov eax, dword ptr [ebx]
+  0x027955: 8d55a4               lea edx, [ebp - 0x5c]
+  0x027958: c745a400000000       mov dword ptr [ebp - 0x5c], 0
+  0x02795f: 89542410             mov dword ptr [esp + 0x10], edx
+  0x027963: c744240c00000000     mov dword ptr [esp + 0xc], 0
+  0x02796b: c744240800000000     mov dword ptr [esp + 8], 0
+  0x027973: c744240400000000     mov dword ptr [esp + 4], 0
+  0x02797b: 891c24               mov dword ptr [esp], ebx
+  0x02797e: ff5048               call dword ptr [eax + 0x48]
+  0x027981: b980f2cd64           mov ecx, 0x64cdf280
+  0x027986: 83ec14               sub esp, 0x14
+  0x027989: e852e00000           call 0x64c359e0
+  0x02798e: 84c0                 test al, al
+  0x027990: 0f858a000000         jne 0x64c27a20
+  0x027996: 8b15ecf2cd64         mov edx, dword ptr [0x64cdf2ec]   ; abs 0x64cdf2ec (RVA 0xdf2ec)
+  0x02799c: 8b03                 mov eax, dword ptr [ebx]
+  0x02799e: c744241000000000     mov dword ptr [esp + 0x10], 0
+  0x0279a6: 89542414             mov dword ptr [esp + 0x14], edx
+  0x0279aa: 8b55a4               mov edx, dword ptr [ebp - 0x5c]
+  0x0279ad: c744240800000000     mov dword ptr [esp + 8], 0
+  0x0279b5: 89742404             mov dword ptr [esp + 4], esi
+  0x0279b9: 8954240c             mov dword ptr [esp + 0xc], edx
+  0x0279bd: 891c24               mov dword ptr [esp], ebx
+  0x0279c0: ff9088000000         call dword ptr [eax + 0x88]
+  0x0279c6: 8b45a4               mov eax, dword ptr [ebp - 0x5c]
+  0x0279c9: 83ec18               sub esp, 0x18
+  0x0279cc: 8b10                 mov edx, dword ptr [eax]
+  0x0279ce: 890424               mov dword ptr [esp], eax
+  0x0279d1: ff5208               call dword ptr [edx + 8]
+  0x0279d4: 8b03                 mov eax, dword ptr [ebx]
+  0x0279d6: 83ec04               sub esp, 4
+
+--- final StretchRect call (RVA 0x279c0, VA 0x64c279c0) ---
+  0x0279c0: ff9088000000         call dword ptr [eax + 0x88]
+  0x0279c6: 8b45a4               mov eax, dword ptr [ebp - 0x5c]
+  0x0279c9: 83ec18               sub esp, 0x18
+  0x0279cc: 8b10                 mov edx, dword ptr [eax]
+  0x0279ce: 890424               mov dword ptr [esp], eax
+  0x0279d1: ff5208               call dword ptr [edx + 8]
+  0x0279d4: 8b03                 mov eax, dword ptr [ebx]
+  0x0279d6: 83ec04               sub esp, 4
+
+--- device Present call (RVA 0x279fc, VA 0x64c279fc) ---
+  0x0279fc: ff5044               call dword ptr [eax + 0x44]
+  0x0279ff: 83ec14               sub esp, 0x14
+  0x027a02: 85c0                 test eax, eax
+  0x027a04: 0f8596010000         jne 0x64c27ba0
+
+--- geometry branch target (RVA 0x27a20, VA 0x64c27a20) ---
+  0x027a20: c745cc00000000       mov dword ptr [ebp - 0x34], 0
+  0x027a27: c745d000000000       mov dword ptr [ebp - 0x30], 0
+  0x027a2e: c745d400000000       mov dword ptr [ebp - 0x2c], 0
+  0x027a35: c745d800000000       mov dword ptr [ebp - 0x28], 0
+  0x027a3c: c745dc00000000       mov dword ptr [ebp - 0x24], 0
+  0x027a43: c745e000000000       mov dword ptr [ebp - 0x20], 0
+  0x027a4a: c745e400000000       mov dword ptr [ebp - 0x1c], 0
+  0x027a51: c745e800000000       mov dword ptr [ebp - 0x18], 0
+  0x027a58: c745ec00000000       mov dword ptr [ebp - 0x14], 0
+  0x027a5f: c745c828000000       mov dword ptr [ebp - 0x38], 0x28
+  0x027a66: c744240402000000     mov dword ptr [esp + 4], 2
+  0x027a6e: a1ccf2cd64           mov eax, dword ptr [0x64cdf2cc]   ; abs 0x64cdf2cc (RVA 0xdf2cc)
+  0x027a73: 890424               mov dword ptr [esp], eax
+  0x027a76: ff1544c7d364         call dword ptr [0x64d3c744]   ; abs 0x64d3c744 (RVA 0x13c744)
+  0x027a7c: 8d55c8               lea edx, [ebp - 0x38]
+  0x027a7f: 83ec08               sub esp, 8
+  0x027a82: 89542404             mov dword ptr [esp + 4], edx
+  0x027a86: 890424               mov dword ptr [esp], eax
+  0x027a89: ff1524c7d364         call dword ptr [0x64d3c724]   ; abs 0x64d3c724 (RVA 0x13c724)
+  0x027a8f: 8b03                 mov eax, dword ptr [ebx]
+  0x027a91: 8d55b8               lea edx, [ebp - 0x48]
+  0x027a94: 83ec08               sub esp, 8
+  0x027a97: 89542408             mov dword ptr [esp + 8], edx
+  0x027a9b: c744240400000000     mov dword ptr [esp + 4], 0
+  0x027aa3: 891c24               mov dword ptr [esp], ebx
+  0x027aa6: ff5020               call dword ptr [eax + 0x20]
+  0x027aa9: 8b45d4               mov eax, dword ptr [ebp - 0x2c]
+  0x027aac: 2b45cc               sub eax, dword ptr [ebp - 0x34]
+  0x027aaf: 31c9                 xor ecx, ecx
+  0x027ab1: 83ec0c               sub esp, 0xc
+  0x027ab4: 894598               mov dword ptr [ebp - 0x68], eax
+  0x027ab7: db4598               fild dword ptr [ebp - 0x68]
+  0x027aba: 8b45d8               mov eax, dword ptr [ebp - 0x28]
+  0x027abd: 2b45d0               sub eax, dword ptr [ebp - 0x30]
+  0x027ac0: 894d9c               mov dword ptr [ebp - 0x64], ecx
+  0x027ac3: 8b1590f2cd64         mov edx, dword ptr [0x64cdf290]   ; abs 0x64cdf290 (RVA 0xdf290)
+  0x027ac9: d95d98               fstp dword ptr [ebp - 0x68]
+  0x027acc: d94598               fld dword ptr [ebp - 0x68]
+  0x027acf: 894598               mov dword ptr [ebp - 0x68], eax
+  0x027ad2: db4598               fild dword ptr [ebp - 0x68]
+  0x027ad5: a18cf2cd64           mov eax, dword ptr [0x64cdf28c]   ; abs 0x64cdf28c (RVA 0xdf28c)
+  0x027ada: d95d98               fstp dword ptr [ebp - 0x68]
+  0x027add: d87598               fdiv dword ptr [ebp - 0x68]
+  0x027ae0: d95d98               fstp dword ptr [ebp - 0x68]
+  0x027ae3: d94598               fld dword ptr [ebp - 0x68]
+  0x027ae6: 895598               mov dword ptr [ebp - 0x68], edx
+  0x027ae9: df6d98               fild qword ptr [ebp - 0x68]
+  0x027aec: c7459c00000000       mov dword ptr [ebp - 0x64], 0
+  0x027af3: d95d98               fstp dword ptr [ebp - 0x68]
+  0x027af6: d94598               fld dword ptr [ebp - 0x68]
+  0x027af9: 894598               mov dword ptr [ebp - 0x68], eax
+  0x027afc: df6d98               fild qword ptr [ebp - 0x68]
+  0x027aff: d95d98               fstp dword ptr [ebp - 0x68]
+  0x027b02: d94598               fld dword ptr [ebp - 0x68]
+  0x027b05: d9c0                 fld st(0)
+  0x027b07: d9c2                 fld st(2)
+  0x027b09: d9c4                 fld st(4)
+  0x027b0b: d9cb                 fxch st(3)
+  0x027b0d: d8f4                 fdiv st(4)
+  0x027b0f: d95d98               fstp dword ptr [ebp - 0x68]
+  0x027b12: d94598               fld dword ptr [ebp - 0x68]
+  0x027b15: d9058019ce64         fld dword ptr [0x64ce1980]   ; abs 0x64ce1980 (RVA 0xe1980)
+  0x027b1b: d9ce                 fxch st(6)
+  0x027b1d: dff6                 fcompi st(6)
+  0x027b1f: 0f87a3000000         ja 0x64c27bc8
+  0x027b25: dddc                 fstp st(4)
+  0x027b27: d9c9                 fxch st(1)
+  0x027b29: d9ca                 fxch st(2)
+  0x027b2b: d9cb                 fxch st(3)
+  0x027b2d: d9ca                 fxch st(2)
+
+--- reset helper (RVA 0x363d0, VA 0x64c363d0) ---
+  0x0363d0: 83ec2c               sub esp, 0x2c
+  0x0363d3: 8b4144               mov eax, dword ptr [ecx + 0x44]
+  0x0363d6: 895c2424             mov dword ptr [esp + 0x24], ebx
+  0x0363da: 89cb                 mov ebx, ecx
+  0x0363dc: 8b10                 mov edx, dword ptr [eax]
+  0x0363de: 890424               mov dword ptr [esp], eax
+  0x0363e1: ff520c               call dword ptr [edx + 0xc]
+  0x0363e4: 83ec04               sub esp, 4
+  0x0363e7: 3d69087688           cmp eax, 0x88760869
+  0x0363ec: 7412                 je 0x64c36400
+  0x0363ee: 85c0                 test eax, eax
+  0x0363f0: 740e                 je 0x64c36400
+  0x0363f2: 8b5c2424             mov ebx, dword ptr [esp + 0x24]
+  0x0363f6: 83c42c               add esp, 0x2c
+  0x0363f9: c20400               ret 4
+  0x0363fc: 8d742600             lea esi, [esi]
+  0x036400: 8b03                 mov eax, dword ptr [ebx]
+  0x036402: 85c0                 test eax, eax
+  0x036404: 740b                 je 0x64c36411
+  0x036406: 8b10                 mov edx, dword ptr [eax]
+  0x036408: 890424               mov dword ptr [esp], eax
+  0x03640b: ff5208               call dword ptr [edx + 8]
+  0x03640e: 83ec04               sub esp, 4
+  0x036411: 8b4304               mov eax, dword ptr [ebx + 4]
+  0x036414: 85c0                 test eax, eax
+  0x036416: 740b                 je 0x64c36423
+  0x036418: 8b10                 mov edx, dword ptr [eax]
+  0x03641a: 890424               mov dword ptr [esp], eax
+  0x03641d: ff5208               call dword ptr [edx + 8]
+  0x036420: 83ec04               sub esp, 4
+  0x036423: 8b4374               mov eax, dword ptr [ebx + 0x74]
+  0x036426: 8b10                 mov edx, dword ptr [eax]
+  0x036428: 890424               mov dword ptr [esp], eax
+  0x03642b: ff5240               call dword ptr [edx + 0x40]
+  0x03642e: 8b4344               mov eax, dword ptr [ebx + 0x44]
+  0x036431: 83ec04               sub esp, 4
+  0x036434: 8b10                 mov edx, dword ptr [eax]
+  0x036436: 8b4c2430             mov ecx, dword ptr [esp + 0x30]
+  0x03643a: 890424               mov dword ptr [esp], eax
+  0x03643d: 894c2404             mov dword ptr [esp + 4], ecx
+  0x036441: ff5240               call dword ptr [edx + 0x40]
+  0x036444: 8b4374               mov eax, dword ptr [ebx + 0x74]
+  0x036447: 83ec08               sub esp, 8
+  0x03644a: 8b10                 mov edx, dword ptr [eax]
+  0x03644c: 890424               mov dword ptr [esp], eax
+  0x03644f: ff5244               call dword ptr [edx + 0x44]
+  0x036452: 8b13                 mov edx, dword ptr [ebx]
+  0x036454: 83ec04               sub esp, 4
+  0x036457: 85d2                 test edx, edx
+  0x036459: 7445                 je 0x64c364a0
+  0x03645b: 8b4344               mov eax, dword ptr [ebx + 0x44]
+  0x03645e: 8b5308               mov edx, dword ptr [ebx + 8]
+  0x036461: 89742428             mov dword ptr [esp + 0x28], esi
+  0x036465: 8b08                 mov ecx, dword ptr [eax]
+  0x036467: c744241800000000     mov dword ptr [esp + 0x18], 0
+  0x03646f: 895c2414             mov dword ptr [esp + 0x14], ebx
+  0x036473: c744241000000000     mov dword ptr [esp + 0x10], 0
+  0x03647b: 8b7354               mov esi, dword ptr [ebx + 0x54]
+  0x03647e: 8974240c             mov dword ptr [esp + 0xc], esi
+  0x036482: 8b721c               mov esi, dword ptr [edx + 0x1c]
+
+--- getEfzTimer export (RVA 0xcf790, VA 0x64ccf790) ---
+  0x0cf790: b8a0f4cd64           mov eax, 0x64cdf4a0
+  0x0cf795: c3                   ret 
+  0x0cf796: 90                   nop 
+  0x0cf797: 90                   nop 
+  0x0cf798: 90                   nop 
+  0x0cf799: 90                   nop 
+  0x0cf79a: 90                   nop 
+  0x0cf79b: 90                   nop 
+  0x0cf79c: 90                   nop 
+  0x0cf79d: 90                   nop 
+  0x0cf79e: 90                   nop 
+  0x0cf79f: 90                   nop 
+
+=== indirect call check ===
+  final StretchRect  RVA 0x279c0: call dword ptr [eax + 0x88]
+  device Present     RVA 0x279fc: call dword ptr [eax + 0x44]
+  device Reset       RVA 0x36441: call dword ptr [edx + 0x40]
+
+RESULT: PASS

@@ -12,6 +12,7 @@ conversion, timer, input, and Revival session behavior in place.
 | Item | State |
 |---|---|
 | Feasibility assessment | Complete — see [EFZ_DisplayManager_Feasibility_2026-10-20.md](EFZ_DisplayManager_Feasibility_2026-10-20.md), especially section 16 (agent implementation handoff) |
+| Stage A research (anchors verified, contracts mapped) | Complete — see [docs/STAGE_A_RESEARCH_2026-10-20.md](docs/STAGE_A_RESEARCH_2026-10-20.md) |
 | Stage A prototype (transparent final-scale adapter) | **Not started** |
 | In-game runtime qualification | **Not started** |
 
@@ -87,8 +88,10 @@ gates** — not part of the first prototype.
 
 ```
 EFZ_DisplayManager_Feasibility_2026-10-20.md   Founding feasibility assessment + handoff
+docs/                                          Stage A research notes + binary-anchor evidence
 references/SokuDisplayManager-master/          Vendored upstream 1.3.0 source (MIT) — port origin, do not modify
 src/                                           EFZ DisplayManager implementation
+tools/verify_anchors.py                        Ddraw/EfzRevival anchor + import verifier (hash-pinned profiles)
 CMakeLists.txt                                 Win32/x86 DLL build
 ```
 
