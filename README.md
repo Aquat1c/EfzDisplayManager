@@ -86,8 +86,7 @@ the graphics driver, so full speed is not guaranteed on every machine.
 
 **What does `DynamicUpload=Auto` do?**
 It changes how the picture is sent to the graphics card to reduce pauses
-on supported graphics cards with Revival 2020 or original 1.02j. Other builds
-keep their existing behavior.
+on supported graphics cards. Other builds keep their existing behavior.
 This is a preview feature. If it causes picture problems, set it to `0`.
 
 **What does `LowLatencyWindow=1` do?**
