@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.15)
-project(DisplayManager VERSION 1.1.2 LANGUAGES CXX)
+project(DisplayManager VERSION 1.1.3 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -22,7 +22,18 @@ set(DM_PORTABLE_SOURCES
     src/sha256.cpp
 )
 
+if(WIN32 OR BUILD_TESTING)
+    find_package(Python3 COMPONENTS Interpreter REQUIRED)
+endif()
+
 if(WIN32)
+    set(DM_CONFIG_HEADER "${CMAKE_CURRENT_BINARY_DIR}/generated/config_defaults.h")
+    add_custom_command(OUTPUT "${DM_CONFIG_HEADER}"
+        COMMAND ${Python3_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/tools/embed_config.py"
+            "${CMAKE_CURRENT_SOURCE_DIR}/DisplayManager.ini" "${DM_CONFIG_HEADER}"
+        DEPENDS DisplayManager.ini tools/embed_config.py
+        VERBATIM)
+    add_custom_target(dm_config_defaults DEPENDS "${DM_CONFIG_HEADER}")
     if(NOT CMAKE_SIZEOF_VOID_P EQUAL 4)
         message(FATAL_ERROR "DisplayManager requires Win32/x86. Use -A Win32 with MSVC.")
     endif()
@@ -46,7 +57,8 @@ if(WIN32)
         src/shaders.cpp
         src/upload_trace.cpp
     )
-    target_include_directories(DisplayManager PRIVATE src)
+    add_dependencies(DisplayManager dm_config_defaults)
+    target_include_directories(DisplayManager PRIVATE src "${CMAKE_CURRENT_BINARY_DIR}/generated")
     set_target_properties(DisplayManager PROPERTIES PREFIX "" OUTPUT_NAME "DisplayManager")
     target_compile_definitions(DisplayManager PRIVATE
         WIN32_LEAN_AND_MEAN NOMINMAX _WIN32_WINNT=0x0501 WINVER=0x0501
@@ -114,7 +126,8 @@ elseif(DM_BUILD_RESET_PROBE OR DM_BUILD_PROFILE_FIXTURE_TEST OR DM_BUILD_UPLOAD_
 endif()
 
 if(BUILD_TESTING)
-    find_package(Python3 COMPONENTS Interpreter REQUIRED)
+    add_test(NAME config_template COMMAND ${Python3_EXECUTABLE} -B -m unittest discover
+        -s ${CMAKE_CURRENT_SOURCE_DIR}/test -p config_template_test.py)
     add_test(NAME frame_trace COMMAND ${Python3_EXECUTABLE} -B -m unittest discover
         -s ${CMAKE_CURRENT_SOURCE_DIR}/test -p frame_trace_test.py)
     add_executable(dm_sha256_test test/sha256_test.cpp ${DM_PORTABLE_SOURCES})
@@ -134,6 +147,10 @@ if(BUILD_TESTING)
     add_test(NAME reset_transaction COMMAND DisplayManagerResetTests)
 
     if(WIN32)
+        add_executable(dm_config_test test/config_test.cpp src/config.cpp)
+        add_dependencies(dm_config_test dm_config_defaults)
+        target_include_directories(dm_config_test PRIVATE src "${CMAKE_CURRENT_BINARY_DIR}/generated")
+        add_test(NAME config_files COMMAND dm_config_test)
         # Exercise the production adapter and participant discovery with fake
         # COM objects and real loader APIs. No graphics device is required.
         add_executable(DisplayManagerRendererResetTests

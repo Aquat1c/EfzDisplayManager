@@ -18,8 +18,10 @@ if errorlevel 1 exit /b 1
 
 :toolchain_ready
 cd /d "%~dp0.."
-for %%D in (build\obj build\out build\obj\testdir build\obj\resettestdir build\obj\probedir build\obj\fixturedir build\obj\renderer-testdir build\out\renderer-reset-tests) do if not exist "%%D" mkdir "%%D"
-set "DM_CXXFLAGS=/c /Isrc /nologo /W4 /O2 /Ob2 /Oy- /D_WINDLL /DWIN32 /D_WINDOWS /DNDEBUG /DWIN32_LEAN_AND_MEAN /DNOMINMAX /D_WIN32_WINNT=0x0501 /DWINVER=0x0501 /EHsc /MT /GS- /GR- /arch:IA32 /std:c++17 /TP"
+for %%D in (build\generated build\obj\configtestdir build\obj build\out build\obj\testdir build\obj\resettestdir build\obj\probedir build\obj\fixturedir build\obj\renderer-testdir build\out\renderer-reset-tests) do if not exist "%%D" mkdir "%%D"
+python tools\embed_config.py DisplayManager.ini build\generated\config_defaults.h
+if errorlevel 1 exit /b 1
+set "DM_CXXFLAGS=/c /Isrc /Ibuild\generated /nologo /W4 /O2 /Ob2 /Oy- /D_WINDLL /DWIN32 /D_WINDOWS /DNDEBUG /DWIN32_LEAN_AND_MEAN /DNOMINMAX /D_WIN32_WINNT=0x0501 /DWINVER=0x0501 /EHsc /MT /GS- /GR- /arch:IA32 /std:c++17 /TP"
 set "DM_OBJECTS="
 for %%F in (bootstrap compat config detour dllmain flip_model format fullscreen geometry hook_flip logging renderer_reset reset_transaction resize sha256 sha256_file shaders upload_trace) do (
     cl !DM_CXXFLAGS! /Fo"build\obj\%%F.obj" "src\%%F.cpp"
@@ -37,6 +39,9 @@ if errorlevel 1 exit /b 1
 cl /nologo /W4 /EHsc /MT /O2 /std:c++17 /Isrc test\reset_transaction_test.cpp src\reset_transaction.cpp /Fe:"build\out\DisplayManagerResetTests.exe" /Fo:"build\obj\resettestdir\\" /Fd:"build\obj\resettestdir\\"
 if errorlevel 1 exit /b 1
 cl /nologo /W3 /EHsc /MT /O2 /LD test\reset_probe.cpp /Fe:"build\out\ResetProbe.dll" /Fo:"build\obj\probedir\\" /Fd:"build\obj\probedir\\"
+if errorlevel 1 exit /b 1
+
+cl /nologo /W4 /EHsc /MT /O2 /std:c++17 /Isrc /Ibuild\generated test\config_test.cpp src\config.cpp user32.lib /Fe:"build\out\dm_config_test.exe" /Fo:"build\obj\configtestdir\\" /Fd:"build\obj\configtestdir\\"
 if errorlevel 1 exit /b 1
 
 rem Compile adapter tests against real Win32 headers and controlled DLL fixtures.
@@ -61,6 +66,8 @@ if /I "%~1"=="--fixtures" (
     if errorlevel 1 exit /b 1
 )
 
+build\out\dm_config_test.exe
+if errorlevel 1 exit /b 1
 build\out\dm_sha256_test.exe
 if errorlevel 1 exit /b 1
 build\out\DisplayManagerResetTests.exe
@@ -70,6 +77,8 @@ if errorlevel 1 exit /b 1
 python tools\verify_pe.py build\out\DisplayManager.dll
 if errorlevel 1 exit /b 1
 python -B -m unittest discover -s test -p frame_trace_test.py
+if errorlevel 1 exit /b 1
+python -B -m unittest discover -s test -p config_template_test.py
 if errorlevel 1 exit /b 1
 python tools\package.py
 if errorlevel 1 exit /b 1

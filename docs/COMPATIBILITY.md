@@ -12,9 +12,12 @@ mod draws its overlay on the same device. When EfzDisplayManager resizes the
 window or toggles fullscreen, the backbuffer must be recreated, which is
 done with `IDirect3DDevice9::Reset`.
 
-`Reset` destroys every resource in the D3DPOOL_DEFAULT memory pool - that
-includes every overlay's render targets, fonts, textures, and sprite
-objects. Two things can go wrong:
+Before `Reset`, each mod must release its `D3DPOOL_DEFAULT` resources and
+prepare any fonts and sprite objects for device loss. Keeping those resources
+alive can make the reset fail. See Microsoft's
+[Reset requirements](https://learn.microsoft.com/en-us/windows/win32/api/d3d9/nf-d3d9-idirect3ddevice9-reset).
+
+Two things can go wrong:
 
 1. If a Reset happens while another mod is mid-frame or still holds stale
    device objects, that mod crashes or hangs the renderer.

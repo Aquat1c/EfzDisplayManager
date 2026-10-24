@@ -46,7 +46,7 @@ bool loadedPeTimestamp(HMODULE mod, unsigned long* timestampOut) {
 }
 
 DWORD WINAPI bootstrapThread(void* param) {
-    Config cfg = loadConfig(reinterpret_cast<HMODULE>(param));
+    Config cfg = loadConfig(reinterpret_cast<HMODULE>(param), true);
     if (!cfg.enabled) {
         DM_LOG("bootstrap: Enabled=0 in DisplayManager.ini; staying inert");
         return 0;

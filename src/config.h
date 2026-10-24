@@ -19,7 +19,7 @@ struct Config {
     unsigned long filter;       // Filter: Linear = 0 (keep Revival's filter),
                                 // Point = D3DTEXF_POINT, Sharp = 100, xBR = 101
     unsigned long backgroundColor;  // BackgroundColor RRGGBB (000000)
-    int borderlessFullscreen;   // FullscreenMode: Borderless (default, also 1) | Exclusive (also 0)
+    int borderlessFullscreen;   // FullscreenMode: Exclusive (default, also 0) | Borderless (also 1)
     unsigned long fullscreenRefresh;  // FullscreenRefresh: exclusive Hz, 0 = desktop rate
     int fullscreenDelayMs;      // FullscreenDelayMs: test/automation delay before
                                 // the Fullscreen=1 startup request
@@ -39,8 +39,9 @@ struct Config {
                                 // Win32's modal size loop and pauses the game
 };
 
-// Reads DisplayManager.ini next to the given module; missing file means
-// defaults. Wide APIs only: an ANSI path breaks outside the system code page.
-Config loadConfig(HMODULE module);
+// Repair is allowed only from the startup worker, never under the loader lock.
+// Wide APIs preserve game paths outside the system code page.
+Config loadConfig(HMODULE module, bool repair = false);
+Config loadConfigFile(const wchar_t* ini, bool repair);
 
 }  // namespace dm
