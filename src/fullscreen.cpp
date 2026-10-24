@@ -80,7 +80,11 @@ void ppUseFlipModel(unsigned char* pp) {
 }
 
 unsigned long pickExclusiveRefresh(const unsigned long* rates, unsigned count,
-                                   unsigned long wanted, unsigned long desktop) {
+                                   unsigned long wanted, unsigned long desktop, bool immediate) {
+    if (immediate) {
+        if (!count) return 0;
+        return nearestRefresh(rates, count, wanted ? wanted : desktop, 0);
+    }
     unsigned long usable[64];
     unsigned n = 0;
     for (unsigned i = 0; i < count && n < 64; ++i)

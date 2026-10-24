@@ -11,6 +11,12 @@ bool rendererResetSignature(const unsigned char** bytes, size_t* length);
 void rendererResetEnable(bool enabled);
 // The device is D3D9Ex: every windowed Reset keeps the flip model.
 void rendererResetUseFlipModel(bool enabled);
+void rendererResetUseDynamicUpload(bool enabled);
+bool rendererUploadActive();
+HRESULT rendererUploadLock(IDirect3DSurface9* surface, D3DLOCKED_RECT* locked,
+                           const RECT* rect, DWORD flags);
+HRESULT rendererUploadUnlock(IDirect3DSurface9* surface);
+IDirect3DSurface9* rendererUploadSource(IDirect3DSurface9* surface);
 // Cheap per-frame gate; the overlay module scan happens inside the request.
 bool rendererResetCanRequest();
 bool rendererResetFrame(IDirect3DDevice9* device);
@@ -25,12 +31,11 @@ unsigned long rendererResetGeneration();
 // D3D9 goes exclusive on the device's own adapter; the wrapper always uses the
 // default one. rendererResetExclusiveTarget finds the adapter owning hwnd's
 // monitor that can host an exclusive device, with its desktop mode (refresh
-// snapped to its mode list when wantedRefresh != 0). Never below 64 Hz:
-// exclusive presents wait for the screen, which would slow the game and desync
-// netplay, so the caller uses borderless. rendererResetSwapAdapter makes only
+// snapped to its mode list when wantedRefresh != 0). Synchronized presentation
+// requires at least 64 Hz. rendererResetSwapAdapter makes only
 // the next request re-create the device on that adapter instead of Resetting.
 bool rendererResetExclusiveTarget(HWND hwnd, unsigned long wantedRefresh,
-                                  unsigned long* ordinal, DisplayMode* mode);
+                                  unsigned long* ordinal, DisplayMode* mode, bool immediate = false);
 unsigned long rendererResetDeviceAdapter();
 void rendererResetSwapAdapter(unsigned long ordinal);
 extern "C" void __fastcall dmNativeResetHook(void* renderer, void* unusedEdx,

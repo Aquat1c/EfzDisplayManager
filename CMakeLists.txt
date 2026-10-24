@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.15)
-project(DisplayManager VERSION 1.1.0 LANGUAGES CXX)
+project(DisplayManager VERSION 1.1.2 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -8,6 +8,7 @@ set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 
 include(CTest)
 option(DM_BUILD_RESET_PROBE "Build the manual D3D9 DEFAULT-pool coexistence probe" OFF)
+option(DM_BUILD_UPLOAD_PROBE "Build the manual exclusive D3D9 upload probe" OFF)
 option(DM_BUILD_PROFILE_FIXTURE_TEST "Build the explicit Windows file/profile hash validator" OFF)
 
 # These sources have no Windows dependency; the same code is used by the DLL
@@ -43,6 +44,7 @@ if(WIN32)
         src/renderer_reset.cpp
         src/sha256_file.cpp
         src/shaders.cpp
+        src/upload_trace.cpp
     )
     target_include_directories(DisplayManager PRIVATE src)
     set_target_properties(DisplayManager PROPERTIES PREFIX "" OUTPUT_NAME "DisplayManager")
@@ -81,6 +83,11 @@ if(WIN32)
         set_target_properties(dm_reset_probe PROPERTIES PREFIX "" OUTPUT_NAME "ResetProbe")
     endif()
 
+    if(DM_BUILD_UPLOAD_PROBE)
+        add_executable(dm_upload_probe tools/upload_probe.cpp)
+        target_link_libraries(dm_upload_probe PRIVATE d3d9 user32 gdi32 winmm)
+    endif()
+
     if(DM_BUILD_PROFILE_FIXTURE_TEST)
         add_executable(dm_profile_fixture_test
             test/profile_fixture_test.cpp src/sha256.cpp src/sha256_file.cpp
@@ -102,11 +109,14 @@ if(WIN32)
             )
         endif()
     endif()
-elseif(DM_BUILD_RESET_PROBE OR DM_BUILD_PROFILE_FIXTURE_TEST)
+elseif(DM_BUILD_RESET_PROBE OR DM_BUILD_PROFILE_FIXTURE_TEST OR DM_BUILD_UPLOAD_PROBE)
     message(FATAL_ERROR "The manual D3D9 probe and file/profile validator require Windows.")
 endif()
 
 if(BUILD_TESTING)
+    find_package(Python3 COMPONENTS Interpreter REQUIRED)
+    add_test(NAME frame_trace COMMAND ${Python3_EXECUTABLE} -B -m unittest discover
+        -s ${CMAKE_CURRENT_SOURCE_DIR}/test -p frame_trace_test.py)
     add_executable(dm_sha256_test test/sha256_test.cpp ${DM_PORTABLE_SOURCES})
     target_include_directories(dm_sha256_test PRIVATE src)
     add_executable(DisplayManagerResetTests

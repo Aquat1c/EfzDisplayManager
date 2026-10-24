@@ -10,6 +10,7 @@
 #include "detour.h"
 #include "flip_model.h"
 #include "hook_flip.h"
+#include "upload_trace.h"
 #include "logging.h"
 #include "profiles.h"
 #include "renderer_reset.h"
@@ -212,7 +213,11 @@ DWORD WINAPI bootstrapThread(void* param) {
             }
         }
     }
-    if (lifecycle && flipModelActive()) armPresentHook();
+    if (lifecycle) {
+        if (flipModelActive() || cfg.dynamicUpload || cfg.traceFrames) armPresentHook();
+        uploadTraceConfigure(reinterpret_cast<HMODULE>(param), base, profile,
+                             cfg.dynamicUpload != 0, static_cast<unsigned>(cfg.traceFrames));
+    }
     if (lifecycle && cfg.fullscreen) {
         if (cfg.fullscreenDelayMs > 0) Sleep(cfg.fullscreenDelayMs);
         setFullscreenConfig(true, cfg.fullscreenHotkey != 0, cfg.vsync, true,

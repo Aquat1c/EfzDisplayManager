@@ -211,6 +211,13 @@ static void runFullscreenTests() {
     if (ok) std::printf("PASS fs exclusive never below 64 Hz\n");
     else { std::printf("FAIL fs exclusive never below 64 Hz\n"); ++failures; }
 
+    ok = dm::pickExclusiveRefresh(laptop, 2, 60, 60, true) == 60 &&
+         dm::pickExclusiveRefresh(laptop, 2, 0, 59, true) == 59 &&
+         dm::pickExclusiveRefresh(tv, 5, 60, 120, true) == 60 &&
+         dm::pickExclusiveRefresh(tv, 0, 60, 60, true) == 0;
+    if (ok) std::printf("PASS immediate exclusive permits tearing below game cadence\n");
+    else { std::printf("FAIL immediate exclusive permits tearing below game cadence\n"); ++failures; }
+
     // Flip model: windowed parameters only; 2+ buffers, no MSAA, not lockable.
     unsigned char fp[dm::kPp_Size] = {};
     w32(fp, dm::kPp_Windowed, 1); w32(fp, dm::kPp_SwapEffect, 1); w32(fp, dm::kPp_BackBufferCount, 1);

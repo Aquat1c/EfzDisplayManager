@@ -62,14 +62,11 @@ long ppHeight(const unsigned char* pp);
 unsigned long nearestRefresh(const unsigned long* rates, unsigned count,
                              unsigned long wanted, unsigned long fallback);
 
-// EFZ draws 64 frames a second (three logic steps each) and is timed by
-// them, so a frame held up for the screen slows the whole game.
+// Native nominal render cadence; no new scheduler is installed here.
 enum { kGameFps = 64 };
-// Exclusive refresh, never below kGameFps (exclusive presents wait for the
-// screen). A wanted rate snaps to the nearest listed rate >= kGameFps;
-// otherwise the desktop rate, or the lowest usable listed rate when the desktop
-// is slower. 0 = none fits; the caller then uses borderless.
+// Synchronized presentation requires kGameFps or more; immediate permits tearing.
+// Zero means no eligible enumerated mode; the caller retains its fallback.
 unsigned long pickExclusiveRefresh(const unsigned long* rates, unsigned count,
-                                   unsigned long wanted, unsigned long desktop);
+                                   unsigned long wanted, unsigned long desktop, bool immediate = false);
 
 }  // namespace dm

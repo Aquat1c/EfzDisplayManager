@@ -14,9 +14,10 @@ and uses them to:
   (letterboxing),
 - optionally run a shader filter (Sharp or xBR) instead of plain scaling.
 
-Nothing else about rendering is touched: the game still composes its native
-640x480 frame, palettes, text, and boxes behave exactly as before, and the
-Ddraw.dll file on disk is never modified.
+On Revival 2020 and original 1.02j, the mod can also change how the picture
+is sent to the graphics card to reduce pauses. The game still builds its
+640x480 picture and draws text and boxes in the same order. The Ddraw.dll
+file on disk is never modified.
 
 ## Why a hash check runs at startup
 
@@ -49,23 +50,23 @@ way to get a new build supported.
    was pressed. This is the only moment where a display reset is safe:
    nothing is half-drawn yet, and the wrapper reloads every pointer from
    its globals right after.
-3. **Only with `LowLatencyWindow=1`:** the wrapper's request for a Direct3D
-   device is answered with the newer kind (see below), and its call that
-   puts a frame on screen is replaced so it never waits.
+3. **Sending the picture.** With `DynamicUpload=1`, supported Revival builds
+   use a different graphics buffer to reduce waiting while preparing the
+   current picture. The rest of the drawing sequence stays in place.
+4. **Only with `LowLatencyWindow=1`:** the wrapper's device request uses
+   the newer windowed path. Exclusive fullscreen follows the `VSync`
+   setting instead.
 
 ## Keeping the game at 64 fps
 
-EFZ draws 64 frames per second and runs three game-logic steps for each of
-them (192 a second). The whole game is timed by those drawn frames: if one
-is held up, the game itself slows down. Most screens refresh 60 times a
-second, so they cannot show all 64 (in window and borderless mode the
-desktop's own compositor leaves about 4 a second out). Making the game wait
-for the screen instead would slow it down by 6%.
+The game targets about 64 frames per second using its own timing.
+DisplayManager leaves that timing in charge. Slow graphics operations
+can still hold the game up.
 
-1. **Exclusive fullscreen only runs at 64 Hz or more.** In exclusive mode
-   every frame waits for the screen, so a slower mode would slow the game
-   down (and break netplay). On a slower screen the hotkey always gives
-   borderless instead; no setting overrides this.
+1. **Exclusive with tearing can use 60 Hz.** With `VSync=0`, parts of the
+   picture can update between screen refreshes, which causes tearing.
+   `VSync=1` requires a mode of at least 64 Hz. Performance depends on
+   the graphics driver; allowing 60 Hz does not guarantee full game speed.
 2. **Window and borderless can use the shortest path.** With
    `LowLatencyWindow=1`, the game's device is created in the newer mode
    Windows 7 and later offer, and Windows can put a borderless game straight
@@ -110,7 +111,7 @@ StretchRect scaling and notes it in the log.
   operation retried on later frames, with backoff.
 - **Exclusive mode is impossible or unsuitable on this monitor** - one
   graphics card driving several monitors only allows it on its main output,
-  and a monitor with no mode of at least 64 Hz would slow the game down.
+  and synchronized presentation requires a mode of at least 64 Hz.
   The hotkey gives letterboxed borderless fullscreen there instead of doing
   nothing.
 - **The newer device mode is unavailable** (`LowLatencyWindow=1` on

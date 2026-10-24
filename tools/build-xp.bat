@@ -21,7 +21,7 @@ cd /d "%~dp0.."
 for %%D in (build\obj build\out build\obj\testdir build\obj\resettestdir build\obj\probedir build\obj\fixturedir build\obj\renderer-testdir build\out\renderer-reset-tests) do if not exist "%%D" mkdir "%%D"
 set "DM_CXXFLAGS=/c /Isrc /nologo /W4 /O2 /Ob2 /Oy- /D_WINDLL /DWIN32 /D_WINDOWS /DNDEBUG /DWIN32_LEAN_AND_MEAN /DNOMINMAX /D_WIN32_WINNT=0x0501 /DWINVER=0x0501 /EHsc /MT /GS- /GR- /arch:IA32 /std:c++17 /TP"
 set "DM_OBJECTS="
-for %%F in (bootstrap compat config detour dllmain flip_model format fullscreen geometry hook_flip logging renderer_reset reset_transaction resize sha256 sha256_file shaders) do (
+for %%F in (bootstrap compat config detour dllmain flip_model format fullscreen geometry hook_flip logging renderer_reset reset_transaction resize sha256 sha256_file shaders upload_trace) do (
     cl !DM_CXXFLAGS! /Fo"build\obj\%%F.obj" "src\%%F.cpp"
     if errorlevel 1 exit /b 1
     set "DM_OBJECTS=!DM_OBJECTS! build\obj\%%F.obj"
@@ -68,6 +68,8 @@ if errorlevel 1 exit /b 1
 build\out\renderer-reset-tests\DisplayManagerRendererResetTests.exe
 if errorlevel 1 exit /b 1
 python tools\verify_pe.py build\out\DisplayManager.dll
+if errorlevel 1 exit /b 1
+python -B -m unittest discover -s test -p frame_trace_test.py
 if errorlevel 1 exit /b 1
 python tools\package.py
 if errorlevel 1 exit /b 1

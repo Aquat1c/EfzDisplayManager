@@ -90,6 +90,7 @@ struct FakeSurface {
     unsigned descriptions = 0;
 };
 struct FakeFont { void** table; Context* context; };
+struct FakeTexture { void** table; Context* context; };
 
 HRESULT STDMETHODCALLTYPE cooperativeLevel(IDirect3DDevice9*);
 HRESULT STDMETHODCALLTYPE getDirect3D(IDirect3DDevice9*, IDirect3D9**);
@@ -102,6 +103,13 @@ HRESULT STDMETHODCALLTYPE createOffscreenSurface(IDirect3DDevice9*, UINT, UINT,
 ULONG STDMETHODCALLTYPE surfaceAddRef(IDirect3DSurface9*);
 ULONG STDMETHODCALLTYPE surfaceRelease(IDirect3DSurface9*);
 HRESULT STDMETHODCALLTYPE surfaceDescription(IDirect3DSurface9*, D3DSURFACE_DESC*);
+HRESULT STDMETHODCALLTYPE deviceCaps(IDirect3DDevice9*, D3DCAPS9*);
+HRESULT STDMETHODCALLTYPE createTexture(IDirect3DDevice9*, UINT, UINT, UINT, DWORD,
+    D3DFORMAT, D3DPOOL, IDirect3DTexture9**, HANDLE*);
+HRESULT STDMETHODCALLTYPE textureSurface(IDirect3DTexture9*, UINT, IDirect3DSurface9**);
+ULONG STDMETHODCALLTYPE textureRelease(IDirect3DTexture9*);
+HRESULT STDMETHODCALLTYPE surfaceLock(IDirect3DSurface9*, D3DLOCKED_RECT*, const RECT*, DWORD);
+HRESULT STDMETHODCALLTYPE surfaceUnlock(IDirect3DSurface9*);
 HRESULT STDMETHODCALLTYPE fontLost(void*);
 HRESULT STDMETHODCALLTYPE fontReset(void*);
 
@@ -111,6 +119,15 @@ struct Context {
     void* deviceTable[119] = {};
     void* surfaceTable[17] = {};
     void* fontTable[18] = {};
+    void* textureTable[22] = {};
+    FakeTexture texture = {textureTable, this};
+    unsigned textureReferences = 0, textureCreates = 0, textureReleases = 0;
+    bool dynamicCaps = true, textureFailure = false, levelFailure = false;
+    DWORD lockFlags = 0;
+    HRESULT lockResult = S_OK;
+    bool discardFailure = false;
+    unsigned lockCalls = 0;
+    IDirect3DSurface9* unlocked = nullptr;
     FakeDevice device = {deviceTable, this};
     FakeFont font = {fontTable, this};
     FakeSurface surfaces[32] = {};
@@ -147,6 +164,12 @@ struct Context {
         deviceTable[6] = reinterpret_cast<void*>(&getDirect3D);
         deviceTable[9] = reinterpret_cast<void*>(&creationParameters);
         deviceTable[16] = reinterpret_cast<void*>(&resetDevice);
+        deviceTable[7] = reinterpret_cast<void*>(&deviceCaps);
+        deviceTable[23] = reinterpret_cast<void*>(&createTexture);
+        textureTable[2] = reinterpret_cast<void*>(&textureRelease);
+        textureTable[18] = reinterpret_cast<void*>(&textureSurface);
+        surfaceTable[13] = reinterpret_cast<void*>(&surfaceLock);
+        surfaceTable[14] = reinterpret_cast<void*>(&surfaceUnlock);
         deviceTable[28] = reinterpret_cast<void*>(&createRenderTarget);
         deviceTable[36] = reinterpret_cast<void*>(&createOffscreenSurface);
         surfaceTable[1] = reinterpret_cast<void*>(&surfaceAddRef);
@@ -288,6 +311,7 @@ HRESULT STDMETHODCALLTYPE resetDevice(IDirect3DDevice9* device, D3DPRESENT_PARAM
     CHECK(pp != nullptr);
     CHECK(c.staging() == nullptr && c.native() == nullptr);
     CHECK(!c.fontLive && !c.shadersLive);
+    CHECK(c.textureReferences == 0);
     for (unsigned i = 0; i < c.surfaceCount; ++i) CHECK(c.surfaces[i].references == 0);
     for (unsigned i = 0; i < 2; ++i)
         if (c.participants[i].state) CHECK(c.participants[i].state->quiesced == 1);
@@ -336,6 +360,54 @@ HRESULT STDMETHODCALLTYPE createOffscreenSurface(IDirect3DDevice9* device, UINT 
     CHECK(pool == D3DPOOL_DEFAULT && shared == nullptr && result != nullptr);
     *result = c.makeSurface(false, width, height);
     return *result ? S_OK : E_OUTOFMEMORY;
+}
+
+HRESULT STDMETHODCALLTYPE deviceCaps(IDirect3DDevice9* device, D3DCAPS9* caps) {
+    *caps = {};
+    if (context(device).dynamicCaps) {
+        caps->Caps2 = D3DCAPS2_DYNAMICTEXTURES;
+        caps->DevCaps2 = D3DDEVCAPS2_CAN_STRETCHRECT_FROM_TEXTURES;
+    }
+    return S_OK;
+}
+HRESULT STDMETHODCALLTYPE createTexture(IDirect3DDevice9* device, UINT w, UINT h, UINT levels,
+    DWORD usage, D3DFORMAT format, D3DPOOL pool, IDirect3DTexture9** out, HANDLE* shared) {
+    auto& c = context(device);
+    ++c.textureCreates;
+    CHECK(w == 640 && h == 480 && levels == 1 && usage == D3DUSAGE_DYNAMIC);
+    CHECK(format == D3DFMT_X8R8G8B8 && pool == D3DPOOL_DEFAULT && !shared);
+    *out = nullptr;
+    if (c.textureFailure) return E_OUTOFMEMORY;
+    CHECK(c.textureReferences == 0);
+    c.textureReferences = 1;
+    *out = reinterpret_cast<IDirect3DTexture9*>(&c.texture);
+    return S_OK;
+}
+HRESULT STDMETHODCALLTYPE textureSurface(IDirect3DTexture9* tex, UINT level, IDirect3DSurface9** out) {
+    auto& c = *reinterpret_cast<FakeTexture*>(tex)->context;
+    CHECK(level == 0);
+    *out = nullptr;
+    if (c.levelFailure) return E_FAIL;
+    *out = c.makeSurface(false, 640, 480);
+    reinterpret_cast<FakeSurface*>(*out)->description.Usage = D3DUSAGE_DYNAMIC;
+    return S_OK;
+}
+ULONG STDMETHODCALLTYPE textureRelease(IDirect3DTexture9* tex) {
+    auto& c = *reinterpret_cast<FakeTexture*>(tex)->context;
+    CHECK(c.textureReferences == 1);
+    ++c.textureReleases;
+    return --c.textureReferences;
+}
+HRESULT STDMETHODCALLTYPE surfaceLock(IDirect3DSurface9* self, D3DLOCKED_RECT*, const RECT*, DWORD flags) {
+    auto& c = *reinterpret_cast<FakeSurface*>(self)->context;
+    c.lockFlags = flags;
+    ++c.lockCalls;
+    if (c.discardFailure && flags == D3DLOCK_DISCARD) return E_FAIL;
+    return c.lockResult;
+}
+HRESULT STDMETHODCALLTYPE surfaceUnlock(IDirect3DSurface9* self) {
+    reinterpret_cast<FakeSurface*>(self)->context->unlocked = self;
+    return S_OK;
 }
 
 ULONG STDMETHODCALLTYPE surfaceAddRef(IDirect3DSurface9* self) {
@@ -657,6 +729,90 @@ void flipModelReset() {
     dm::rendererResetUseFlipModel(false);
 }
 
+void dynamicUpload() {
+    Context c;
+    if (!c.initialize()) return;
+    auto* original = c.staging();
+    auto* native = c.native();
+    dm::rendererResetUseDynamicUpload(true);
+    CHECK(dm::rendererResetFrame(c.comDevice()));
+    CHECK(c.staging() != original && c.native() == native && c.textureCreates == 1);
+    D3DLOCKED_RECT locked = {};
+    CHECK(dm::rendererUploadLock(c.staging(), &locked, nullptr, 0) == S_OK);
+    CHECK(c.lockFlags == D3DLOCK_DISCARD);
+    CHECK(dm::rendererUploadLock(native, &locked, nullptr, D3DLOCK_READONLY) == S_OK);
+    CHECK(c.lockFlags == D3DLOCK_READONLY);
+    CHECK(dm::rendererResetFrame(c.comDevice()));
+    CHECK(c.textureCreates == 1);
+    CHECK(c.request(Context::desired()) == dm::ResetOutcome::RequestedReady);
+    CHECK(c.textureReleases == 1 && c.textureReferences == 0);
+    CHECK(dm::rendererResetFrame(c.comDevice()));
+    CHECK(c.textureCreates == 2 && c.native() != native);
+    CHECK(c.request(Context::desired()) == dm::ResetOutcome::RequestedReady);
+}
+void dynamicUploadFailure() {
+    Context c;
+    if (!c.initialize()) return;
+    auto* original = c.staging();
+    dm::rendererResetUseDynamicUpload(true);
+    c.textureFailure = true;
+    CHECK(dm::rendererResetFrame(c.comDevice()));
+    CHECK(c.staging() == original && c.textureReferences == 0);
+    CHECK(dm::rendererResetFrame(c.comDevice()));
+    CHECK(c.textureCreates == 1); // failed allocation is not retried every frame
+    CHECK(c.request(Context::desired()) == dm::ResetOutcome::RequestedReady);
+    c.textureFailure = false;
+    c.levelFailure = true;
+    original = c.staging();
+    CHECK(dm::rendererResetFrame(c.comDevice()));
+    CHECK(c.staging() == original && c.textureReferences == 0 && c.textureReleases == 1);
+    CHECK(c.request(Context::desired()) == dm::ResetOutcome::RequestedReady);
+    c.levelFailure = false;
+    c.dynamicCaps = false;
+    original = c.staging();
+    CHECK(dm::rendererResetFrame(c.comDevice()));
+    CHECK(c.staging() == original && c.textureCreates == 2);
+}
+
+void dynamicUploadLockFailure() {
+    Context c;
+    if (!c.initialize()) return;
+    auto* original = c.staging();
+    dm::rendererResetUseDynamicUpload(true);
+    CHECK(c.frame());
+    auto* cached = c.staging();
+    c.discardFailure = true;
+    D3DLOCKED_RECT locked = {};
+    CHECK(dm::rendererUploadLock(cached, &locked, nullptr, 0) == S_OK);
+    CHECK(c.lockCalls == 2 && c.lockFlags == 0 && c.staging() == original);
+    CHECK(!dm::rendererUploadActive());
+    CHECK(dm::rendererUploadUnlock(cached) == S_OK && c.unlocked == original);
+    CHECK(dm::rendererUploadSource(cached) == original);
+    CHECK(dm::rendererUploadLock(original, &locked, nullptr, 0) == S_OK && c.lockCalls == 3);
+    CHECK(c.request(Context::desired()) == dm::ResetOutcome::RequestedReady);
+    CHECK(c.textureReferences == 0 && reinterpret_cast<FakeSurface*>(cached)->releases == 1);
+    CHECK(reinterpret_cast<FakeSurface*>(original)->releases == 1);
+}
+
+void dynamicUploadDeviceReplacement() {
+    Context c;
+    if (!c.initialize()) return;
+    auto* original = c.staging();
+    dm::rendererResetUseDynamicUpload(true);
+    CHECK(c.frame());
+    // A wrapper-owned device replacement releases its own surface references.
+    c.staging()->Release();
+    c.native()->Release();
+    c.staging() = c.makeSurface(false, 640, 480);
+    c.native() = c.makeSurface(true, 640, 480);
+    FakeDevice fresh = {c.deviceTable, &c};
+    CHECK(dm::rendererResetFrame(reinterpret_cast<IDirect3DDevice9*>(&fresh)));
+    CHECK(c.textureReleases == 1 && c.textureCreates == 2);
+    CHECK(reinterpret_cast<FakeSurface*>(original)->releases == 1);
+    CHECK(c.request(Context::desired()) == dm::ResetOutcome::RequestedReady);
+    CHECK(c.textureReferences == 0);
+}
+
 void healthyPrepareRefusal() {
     Context c;
     if (!c.initialize() || !c.participants[0].load(0) || !c.participants[1].load(1)) return;
@@ -790,6 +946,10 @@ const TestCase kCases[] = {
     {"legacy_recovery", legacyModuleRecovery},
     {"stale_swap", staleSwapArm},
     {"flip_model", flipModelReset},
+    {"dynamic_upload", dynamicUpload},
+    {"dynamic_upload_failure", dynamicUploadFailure},
+    {"dynamic_upload_lock_failure", dynamicUploadLockFailure},
+    {"dynamic_upload_device_replacement", dynamicUploadDeviceReplacement},
     {"healthy_prepare_refusal", healthyPrepareRefusal},
     {"failed_font_cancellation", failedFontCancellation},
     {"partial_font_retry", partialFontRetry},

@@ -50,6 +50,8 @@ Config loadConfig(HMODULE module) {
     c.hideCursor = 1;
     c.vsync = 0;
     c.lowLatencyWindow = 0;
+    c.dynamicUpload = 1;
+    c.traceFrames = 0;
     c.resizeBackBuffer = 1;
     c.windowAdjustStyle = 1;
     c.windowDragResize = 1;
@@ -109,6 +111,10 @@ Config loadConfig(HMODULE module) {
     c.fullscreenHotkey = readInt(L"FullscreenHotkey", c.fullscreenHotkey);
     c.hideCursor = readInt(L"HideCursor", c.hideCursor);
     c.vsync = readInt(L"VSync", 0) == 1 ? 1 : 0;  // old -1 (keep) maps to 0
+    c.dynamicUpload = readInt(L"DynamicUpload", 1) != 0;
+    c.traceFrames = readInt(L"TraceFrames", 0);
+    if (c.traceFrames < 0) c.traceFrames = 0;
+    if (c.traceFrames > 32768) c.traceFrames = 32768;
     c.lowLatencyWindow = readInt(L"LowLatencyWindow", c.lowLatencyWindow) != 0;
     c.resizeBackBuffer = readInt(L"ResizeBackBuffer", c.resizeBackBuffer);
     c.windowAdjustStyle = readInt(L"WindowAdjustStyle", c.windowAdjustStyle);

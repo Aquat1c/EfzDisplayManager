@@ -33,6 +33,11 @@ HRESULT g_lastResetResult = S_OK;
 const char* g_reason = "recovery";
 bool g_mandatory = false;
 bool g_flipModel = false;
+bool g_dynamicUpload = false, g_uploadFailed = false;
+IDirect3DTexture9* g_uploadTexture = nullptr;
+IDirect3DSurface9* g_uploadSurface = nullptr;
+IDirect3DSurface9* g_originalStaging = nullptr;
+IDirect3DSurface9* g_retiredUpload = nullptr;
 
 // Adapter reacquisition for exclusive fullscreen (see header).
 bool g_swapPending = false;
@@ -57,6 +62,15 @@ IDirect3DSurface9*& native() {
 }
 unsigned char* parameters() { return g_base + g_profile->ppRva; }
 
+void releaseUploadExtras() {
+    if (g_originalStaging) g_originalStaging->Release();
+    if (g_retiredUpload) g_retiredUpload->Release();
+    if (g_uploadTexture) g_uploadTexture->Release();
+    g_originalStaging = g_retiredUpload = g_uploadSurface = nullptr;
+    g_uploadTexture = nullptr;
+    g_uploadFailed = false;
+}
+
 // Never replace the device vtable pointer, even with an identical copy: it
 // wedges the wrapper's Flip (Clear through the copy never returns, black
 // window). Reset is intercepted at the reset helper instead.
@@ -74,6 +88,9 @@ bool bindDevice(IDirect3DDevice9* device) {
     }
     if (g_device != device) {
         if (g_tx.phase != ResetPhase::Idle || compatPending()) return false;
+        // A foreign replacement must replace its wrapper-owned surfaces too.
+        if (g_uploadSurface && staging() == g_uploadSurface) return false;
+        releaseUploadExtras();
         shadersReleaseResources();
         g_device = device;
         g_described = false;
@@ -121,6 +138,38 @@ bool describe() {
     return true;
 }
 
+void prepareUpload() {
+    if (!g_dynamicUpload || g_uploadTexture || g_uploadFailed) return;
+    g_uploadFailed = true;
+    D3DCAPS9 caps = {};
+    if (FAILED(g_device->GetDeviceCaps(&caps)) || !(caps.Caps2 & D3DCAPS2_DYNAMICTEXTURES) ||
+        !(caps.DevCaps2 & D3DDEVCAPS2_CAN_STRETCHRECT_FROM_TEXTURES) ||
+        g_stagingDesc.Format != D3DFMT_X8R8G8B8 || g_stagingDesc.Usage ||
+        g_stagingDesc.MultiSampleType != D3DMULTISAMPLE_NONE) {
+        DM_LOG("upload: dynamic texture/copy unsupported; retaining original upload");
+        return;
+    }
+    IDirect3DTexture9* texture = nullptr;
+    IDirect3DSurface9* surface = nullptr;
+    HRESULT hr = g_device->CreateTexture(g_stagingDesc.Width, g_stagingDesc.Height, 1,
+        D3DUSAGE_DYNAMIC, g_stagingDesc.Format, D3DPOOL_DEFAULT, &texture, nullptr);
+    if (SUCCEEDED(hr) && texture) hr = texture->GetSurfaceLevel(0, &surface);
+    if (FAILED(hr) || !texture || !surface) {
+        if (surface) surface->Release();
+        if (texture) texture->Release();
+        DM_LOG("upload: dynamic allocation failed %08lx; retaining original upload", hr);
+        return;
+    }
+    // The original stays available for same-iteration recovery from a failed lock.
+    g_originalStaging = staging();
+    g_uploadTexture = texture;
+    staging() = g_uploadSurface = surface;
+    g_describedStaging = surface;
+    g_uploadFailed = false;
+    DM_LOG("upload: dynamic DISCARD %ux%u; current iteration feeds native target",
+           g_stagingDesc.Width, g_stagingDesc.Height);
+}
+
 void releaseSurfaces() {
     IDirect3DSurface9* s = staging();
     IDirect3DSurface9* n = native();
@@ -128,6 +177,7 @@ void releaseSurfaces() {
     native() = nullptr;
     if (s) s->Release();
     if (n) n->Release();
+    releaseUploadExtras();
 }
 HRESULT fontCall(unsigned index) {
     return reinterpret_cast<FontFn>((*reinterpret_cast<void***>(g_font))[index])(g_font);
@@ -348,6 +398,29 @@ bool rendererResetSignature(const unsigned char** bytes, size_t* length) {
 }
 void rendererResetEnable(bool enabled) { g_enabled = enabled; }
 void rendererResetUseFlipModel(bool enabled) { g_flipModel = enabled; }
+void rendererResetUseDynamicUpload(bool enabled) { g_dynamicUpload = enabled; }
+bool rendererUploadActive() { return g_uploadSurface && !g_uploadFailed; }
+IDirect3DSurface9* rendererUploadSource(IDirect3DSurface9* surface) {
+    return surface == g_retiredUpload ? staging() : surface;
+}
+HRESULT rendererUploadLock(IDirect3DSurface9* surface, D3DLOCKED_RECT* locked,
+                           const RECT* rect, DWORD flags) {
+    if (surface != g_uploadSurface || g_uploadFailed || rect || flags)
+        return rendererUploadSource(surface)->LockRect(locked, rect, flags);
+    const HRESULT hr = surface->LockRect(locked, nullptr, D3DLOCK_DISCARD);
+    if (SUCCEEDED(hr)) return hr;
+    // Revival ignores lock failure. Attempt same-iteration recovery on its
+    // original resource; failure of that lock retains the native limitation.
+    g_uploadFailed = true;
+    g_retiredUpload = surface;
+    staging() = g_describedStaging = g_originalStaging;
+    g_originalStaging = nullptr;
+    DM_LOG("upload: DISCARD lock failed %08lx; original resource restored", hr);
+    return staging()->LockRect(locked, rect, flags);
+}
+HRESULT rendererUploadUnlock(IDirect3DSurface9* surface) {
+    return rendererUploadSource(surface)->UnlockRect();
+}
 bool rendererResetBusy() { return g_tx.phase != ResetPhase::Idle || g_tx.executing; }
 ResetOutcome rendererResetLastOutcome() { return g_outcome; }
 unsigned long rendererResetGeneration() { return g_generation; }
@@ -377,7 +450,7 @@ ResetOutcome rendererResetRequest(const unsigned char* desired, const unsigned c
 // monitors reports its secondary outputs that way (verified on a two-output
 // NVIDIA WDDM system for every parameter combination).
 bool rendererResetExclusiveTarget(HWND hwnd, unsigned long wantedRefresh,
-                                  unsigned long* ordinal, DisplayMode* mode) {
+                                  unsigned long* ordinal, DisplayMode* mode, bool immediate) {
     if (!g_device || !hwnd) return false;
     IDirect3D9* d3d = nullptr;
     if (FAILED(g_device->GetDirect3D(&d3d)) || !d3d) return false;
@@ -402,10 +475,10 @@ bool rendererResetExclusiveTarget(HWND hwnd, unsigned long wantedRefresh,
                 listed.Width == desktop.Width && listed.Height == desktop.Height)
                 rates[rateCount++] = listed.RefreshRate;
         }
-        const unsigned long refresh = pickExclusiveRefresh(rates, rateCount, wantedRefresh, desktop.RefreshRate);
+        const unsigned long refresh = pickExclusiveRefresh(rates, rateCount, wantedRefresh, desktop.RefreshRate, immediate);
         if (!refresh) {
-            DM_LOG("fullscreen: no mode of at least %d Hz on adapter %u; exclusive would slow the game",
-                   int(kGameFps), i);
+            DM_LOG("fullscreen: no eligible %s mode on adapter %u",
+                   immediate ? "immediate" : "synchronized (at least 64 Hz)", i);
             break;
         }
         *ordinal = i;
@@ -462,6 +535,7 @@ bool rendererResetFrame(IDirect3DDevice9* device) {
         if (!restoreFont()) return false;
     }
     if (compatPending()) compatEnd(true);
+    prepareUpload();
     return true;
 }
 

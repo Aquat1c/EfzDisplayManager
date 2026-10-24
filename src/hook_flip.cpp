@@ -6,6 +6,8 @@
 #include "compat.h"
 #include "detour.h"
 #include "fullscreen.h"
+#include "flip_model.h"
+#include "upload_trace.h"
 #include "geometry.h"
 #include "logging.h"
 #include "renderer_reset.h"
@@ -177,7 +179,7 @@ void toggleFullscreen(HWND hwnd) {
         DisplayMode mode = {};
         unsigned long ordinal = 0;
         if (!g_fsUseBorderless) {
-            if (!rendererResetExclusiveTarget(hwnd, g_fsRefresh, &ordinal, &mode)) {
+            if (!rendererResetExclusiveTarget(hwnd, g_fsRefresh, &ordinal, &mode, g_fsVSync != 1)) {
                 DM_LOG("fullscreen: exclusive not possible on the window's monitor; entering borderless");
             } else if (ordinal == rendererResetDeviceAdapter()) {
                 exclusiveNow = true;
@@ -248,13 +250,17 @@ HRESULT presentFrame(IDirect3DDevice9* dev, const RECT* src, const RECT* dst, HW
                      const RGNDATA* dirty) {
     HRESULT hr;
     IDirect3DSwapChain9* chain = nullptr;
-    if (readU32(g_obs.base, g_obs.profile->ppRva + kPp_Windowed) && SUCCEEDED(dev->GetSwapChain(0, &chain))) {
+    uploadTraceMark(PresentBegin);
+    const bool windowedFlip = flipModelActive() && readU32(g_obs.base, g_obs.profile->ppRva + kPp_Windowed);
+    if (windowedFlip && SUCCEEDED(dev->GetSwapChain(0, &chain))) {
         hr = chain->Present(src, dst, window, dirty, D3DPRESENT_DONOTWAIT);
         chain->Release();
-        if (hr == D3DERR_WASSTILLDRAWING) hr = D3D_OK;
+
     } else {
         hr = dev->Present(src, dst, window, dirty);
     }
+    uploadTracePresent(hr);
+    if (windowedFlip && hr == D3DERR_WASSTILLDRAWING) hr = D3D_OK;
     return SUCCEEDED(hr) ? D3D_OK : hr;
 }
 
@@ -277,7 +283,7 @@ void installPresentHook() {
         patch[5] = 0x90;
     }
     if (!installPatch(site, g_obs.profile->presentBytes, sizeof(patch), patch))
-        DM_LOG("present: hook unavailable; flip-model presents may wait for the screen");
+        DM_LOG("present: hook unavailable; presentation tracing/flip-model handling disabled");
 }
 }
 
@@ -330,6 +336,7 @@ extern "C" long dmFlipEntryWork() {
     // rendererResetFrame also refuses while a Reset executes.
     if (g_inTransition) return 1;
     if (InterlockedExchange(&g_presentArmed, 0)) installPresentHook();
+    uploadTraceFrameStart();
     auto* dev = *reinterpret_cast<IDirect3DDevice9**>(g_obs.base + g_obs.profile->deviceRva);
     HWND hwnd = *reinterpret_cast<HWND*>(g_obs.base + g_obs.profile->hwndRva);
     if (!dev || !rendererResetFrame(dev)) return 1;
@@ -422,6 +429,7 @@ extern "C" void __stdcall dmFinalStretchHook(IDirect3DDevice9* dev,
                                              const RECT* dstRect,
                                              unsigned long filter) {
     if (rendererResetBusy()) return;
+    uploadTraceMark(FinalCopyBegin);
     ++g_obs.calls;
 
     // Flip-stall detector: modal move/size loops, focus loss, blocking waits.
@@ -524,8 +532,8 @@ extern "C" void __stdcall dmFinalStretchHook(IDirect3DDevice9* dev,
 
     // ---- Forwarding: adaptation or native passthrough ----
     if (!g_obs.adapt.active || !g_obs.haveDescs) {
-        dev->StretchRect(src, srcRect, dst, dstRect,
-                         static_cast<D3DTEXTUREFILTERTYPE>(filter));
+        uploadTraceFinalCopy(dev->StretchRect(src, srcRect, dst, dstRect,
+                         static_cast<D3DTEXTUREFILTERTYPE>(filter)));
         return;
     }
 
@@ -534,8 +542,8 @@ extern "C" void __stdcall dmFinalStretchHook(IDirect3DDevice9* dev,
                            int(g_obs.bbH), g_obs.adapt.mode,
                            g_obs.adapt.integerScale, g_obs.adapt.customWidth,
                            g_obs.adapt.customHeight, &outW, &outH)) {
-        dev->StretchRect(src, srcRect, dst, dstRect,
-                         static_cast<D3DTEXTUREFILTERTYPE>(filter));
+        uploadTraceFinalCopy(dev->StretchRect(src, srcRect, dst, dstRect,
+                         static_cast<D3DTEXTUREFILTERTYPE>(filter)));
         return;
     }
 
@@ -566,12 +574,15 @@ extern "C" void __stdcall dmFinalStretchHook(IDirect3DDevice9* dev,
     fillBars();
 
     if (shadersActive()) {
-        if (shadersDrawUpscaled(dev, src, dst, &outRect)) return;
+        if (shadersDrawUpscaled(dev, src, dst, &outRect)) {
+            uploadTraceFinalCopy(S_OK);
+            return;
+        }
         // A failed pass may have let an EndScene overlay touch the bars; redraw them.
         fillBars();
     }
-    dev->StretchRect(src, srcRect, dst, &outRect,
-                     static_cast<D3DTEXTUREFILTERTYPE>(effectiveFilter));
+    uploadTraceFinalCopy(dev->StretchRect(src, srcRect, dst, &outRect,
+                     static_cast<D3DTEXTUREFILTERTYPE>(effectiveFilter)));
 }
 
 }  // namespace dm

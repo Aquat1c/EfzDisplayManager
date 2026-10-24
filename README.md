@@ -61,17 +61,21 @@ other mods' menus always show. Exclusive gives the game the screen to itself.
 On most PCs the difference in delay is small. Try `LowLatencyWindow=1` first.
 
 **Why did I get borderless when I set `FullscreenMode=Exclusive`?**
-Exclusive fullscreen is only used on screens that run at 64 Hz or faster.
-EFZ draws 64 frames a second, and on a slower screen exclusive mode would
-slow the whole game down, which also breaks netplay. Most laptop screens run
-at 60 Hz, so they get borderless. With several monitors on one graphics card,
-exclusive usually only works on the main monitor.
+With `VSync=0`, exclusive fullscreen allows 60 Hz and requests immediate
+presentation with tearing. With `VSync=1`, a mode of at least 64 Hz is still
+required. With several monitors on one graphics card, exclusive usually
+only works on the main output. Unsupported modes retain the existing
+borderless fallback; check the log to confirm which mode actually started.
 
 **Does the game run at full speed on a 60 Hz screen?**
-Yes. A 60 Hz screen can only show 60 pictures a second, so about 4 of the
-game's 64 frames are never shown, but the game itself keeps its speed. Every
-game and mod does the same on such a screen. A 120 Hz or faster screen shows
-the game more evenly, and G-SYNC/FreeSync shows it perfectly evenly.
+The game keeps its own timing. With `VSync=0`, exclusive mode allows tearing
+instead of waiting for each screen refresh. Performance still depends on
+the graphics driver, so full speed is not guaranteed on every machine.
+
+**What does `DynamicUpload=1` do?**
+It changes how the picture is sent to the graphics card to reduce pauses
+on Revival 2020 and original 1.02j. Other builds keep their existing behavior.
+This is a preview feature. If it causes picture problems, set it to `0`.
 
 **What does `LowLatencyWindow=1` do?**
 The picture reaches the screen sooner in window and borderless mode (up to
@@ -94,7 +98,8 @@ get resizing back. Other mods (translations, stages, replay tools) are not
 affected.
 
 **The picture tears in exclusive fullscreen.**
-Set `VSync=1`. The game keeps its full speed either way.
+Set `VSync=1` to synchronize presentation. This requires a mode of at least
+64 Hz and can add waiting; use `VSync=0` when tearing is acceptable.
 
 **The mod does nothing at all.**
 Your Revival `Ddraw.dll` is probably a version the mod does not know, and the

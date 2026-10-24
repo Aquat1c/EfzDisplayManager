@@ -28,6 +28,8 @@ struct Config {
     int hideCursor;             // HideCursor (1): hide the idle pointer in fullscreen
     long vsync;                 // VSync (0): 1 = exclusive presents wait for the screen;
                                 // else immediate
+    int dynamicUpload;          // DynamicUpload (1): current-image DISCARD upload
+    int traceFrames;            // TraceFrames (0): bounded in-memory diagnostic capture
     int lowLatencyWindow;       // LowLatencyWindow (0): D3D9Ex flip model in window/borderless
     int compatLayer;            // CompatLayer (1): reset contract with known overlays;
                                 // 0 + a loaded overlay blocks voluntary resets
