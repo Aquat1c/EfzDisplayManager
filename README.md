@@ -47,6 +47,8 @@ picture; returning to the starting size restores Revival's original buffer size.
 DisplayManager's extra options are in `mods\DisplayManager\DisplayManager.ini`.
 Close the game before editing them. If the file is missing, the mod creates it.
 Missing or invalid entries are repaired without replacing valid choices.
+They can also be changed in [EfzConfig+](https://github.com/Aquat1c/EfzConfigPlus): select
+DisplayManager on its Mods tab and press Settings.
 
 New settings start the game in a window. `F11` or `Alt+Enter` selects exclusive
 fullscreen. `VSync=Auto` allows tearing, and `DynamicUpload=Auto` enables the
